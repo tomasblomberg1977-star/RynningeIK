@@ -69,6 +69,7 @@ const tranKey   = (bId,nr)=> `${bId}-${nr}`;
 const TYPFARG   = { Uppvärmning:"bg-orange-100 text-orange-800",Teknik:"bg-blue-100 text-blue-800",Taktik:"bg-indigo-100 text-indigo-800",Spelövning:"bg-emerald-100 text-emerald-800",Matchspel:"bg-purple-100 text-purple-800",Avslut:"bg-slate-100 text-slate-600",Målvaktsträning:"bg-violet-100 text-violet-800" };
 const DAGFARG   = { Måndag:"bg-blue-800",Onsdag:"bg-indigo-800",Torsdag:"bg-amber-700" };
 const BLOCKFARG = ["bg-green-700","bg-blue-700","bg-amber-600","bg-purple-700","bg-slate-600","bg-teal-700","bg-rose-700"];
+const MV_BLOCKFARG = "bg-violet-700";
 
 const STATUSAR = [
   {v:"bla",    l:"Blå",     icon:"🔵",cls:"bg-blue-50 border-blue-400 text-blue-800"},
@@ -240,8 +241,8 @@ const genBlock = (existingBlocks, selectedSkeden) => {
   };
   const skedeLabel = activeSkeden.map(s=>skedeLabels[s]||s).join(" & ");
   const blockTitel = selectedSkeden && selectedSkeden.length > 0
-    ? `Block ${nextId} – ${skedeLabel}`
-    : `Block ${nextId} – ${mall.titel}`;
+    ? skedeLabel
+    : mall.titel;
   return {
     id: nextId,
     titel: blockTitel,
@@ -858,284 +859,219 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
 
 
 
+// ─── GENERATE MV BLOCK ────────────────────────────────────────────────
+const MV_BLOCK_NAMN = [
+  "Skott & rädda avslut",
+  "Inlägg & täckning",
+  "Djupledsspel & frilägen",
+  "Igångsättning & speldjup bakåt",
+  "Explosivitet & positionsspel",
+  "Teknik & fallteknik",
+];
+
+const genMVBlock = (existingMVBlocks) => {
+  const nextId = Math.max(0, ...existingMVBlocks.map(b => b.id)) + 1;
+  const mallIdx = (nextId - 1) % MV_BLOCK_NAMN.length;
+  const blockNamn = MV_BLOCK_NAMN[mallIdx];
+  const pdfOvn = Object.values(OVN).filter(o => o.id.startsWith("ovningar") && o.skede === "MV");
+  const dagar = ["Måndag","Onsdag","Torsdag","Måndag","Onsdag","Torsdag"];
+  const vec   = [1,1,1,2,2,2];
+  const usedGlobally = new Set();
+
+  const trän = dagar.map((dag, i) => {
+    const usedHere = new Set();
+    const pickMV = () => {
+      const avail = pdfOvn.filter(o => !usedGlobally.has(o.id) && !usedHere.has(o.id));
+      const pool = avail.length ? avail : pdfOvn;
+      const o = pool[Math.floor(Math.random() * Math.min(pool.length, 6))];
+      usedHere.add(o.id); usedGlobally.add(o.id); return o;
+    };
+    const mvOvn = [pickMV(), pickMV(), pickMV()];
+    const delar = [
+      {typ:"Uppvärmning",tid:12,namn:"MV-uppvärmning + aktivering",beskr:"FIFA 11+ för målvakter. Ledrörlighet, koordination, explosiva hopp.",blå:"",vit:"",rep:false},
+      {typ:"Målvaktsträning",tid:20,namn:mvOvn[0].namn,ovnId:mvOvn[0].id,rep:false,beskr:`${mvOvn[0].vad}. ${mvOvn[0].varfor}`,blå:"Mv fokus på teknik – tränaren ger individuell feedback.",vit:""},
+      {typ:"Målvaktsträning",tid:20,namn:mvOvn[1].namn,ovnId:mvOvn[1].id,rep:false,beskr:`${mvOvn[1].vad}. ${mvOvn[1].varfor}`,blå:"",vit:""},
+      {typ:"Målvaktsträning",tid:20,namn:mvOvn[2].namn,ovnId:mvOvn[2].id,rep:false,beskr:`${mvOvn[2].vad}. ${mvOvn[2].varfor}`,blå:"",vit:""},
+      {typ:"Matchspel",tid:15,namn:"Matchsimulering med Mv",beskr:"Utespelarna spelar small-sided. Mv agerar i riktiga situationer.",blå:"",vit:"",rep:false},
+      {typ:"Avslut",tid:5,namn:"Reflektion – en lärdom",beskr:"Varje Mv namnger en sak de vill ta med sig.",blå:"",vit:"",rep:false},
+    ];
+    return {
+      dag, nr:i+1, vec:vec[i], skeden:["MV"],
+      principer:[...new Set(mvOvn.flatMap(o=>o.principer||[]))].slice(0,4),
+      syfte:`MV-träning: ${[...new Set(mvOvn.map(o=>o.kategori))].join(", ")}`,
+      ledBlå:"Fokus på teknik och tajming. Ger individuell feedback per Mv.",
+      ledVit:"Dokumenterar observationer för spelarsamtal.",
+      delar,
+    };
+  });
+  return { id:nextId, titel:blockNamn, period:"", pfarg:"mv", vardeord:"STOLTHET", trän, typ:"MV" };
+};
+
+
 // ═══════════════════════════════════════════════════════════════════════
 // ARBETSSATT VIEW
 // ═══════════════════════════════════════════════════════════════════════
 const ARBETSSATT_SEKTIONER = [
   {
-    id: "filosofi",
-    ikon: "🧠",
-    rubrik: "Vår filosofi",
-    farg: "bg-blue-900",
-    innehall: [
-      {
-        typ: "text",
-        text: "Vi utvecklar hela spelaren – inte bara fotbollsspelaren. Rynninge IK P15/16 prioriterar långsiktig spelarutveckling framför kortsiktiga resultat. Det betyder att vi väljer det som gör spelaren bättre om tre år, inte det som vinner nästa match."
-      },
-      {
-        typ: "text",
-        text: "Vi tror att spelarna lär sig bäst när de har kul, känner sig trygga och utmanas i matchlika situationer. Glädje och mod att prova är inte mjuka värden – de är förutsättningar för att bli duktig."
-      },
-      {
-        typ: "lista",
-        rubrik: "Vi balanserar utveckling och resultat så här:",
-        punkter: [
-          "Resultat är ett kvitto på vad vi gör – inte målet i sig",
-          "Vi roterar speltid och position för att alla ska utvecklas",
-          "Vi coachar process: Vad tänkte du? Vad hade hänt om? – inte bara Bra / Dåligt",
-          "Ansträngning och lärande belönas mer än prestation"
-        ]
-      }
+    id:"filosofi", ikon:"🧠", rubrik:"Vår filosofi", farg:"bg-blue-900",
+    innehall:[
+      {typ:"lista",rubrik:null,punkter:[
+        "Vi utvecklar spelare – inte bara lag. Resultat är en bonus, utveckling är målet.",
+        "Vi spelar fotboll på ett modigt sätt – vi vågar spela oss fram via mittfältet.",
+        "Misstag är en del av lärandet – vi uppmuntrar försök, inte rädsla.",
+        "Alla spelare ska känna sig trygga, sedda och viktiga i laget.",
+        "Vi tränar och spelar för att bli bättre – inte bara för att vinna nästa match.",
+        "Vi tar ansvar för vår egen utveckling och för varandra.",
+        "Vi representerar Rynninge IK med respekt – på planen och utanför.",
+      ]}
     ]
   },
   {
-    id: "spelidé",
-    ikon: "⚽",
-    rubrik: "Vår spelidé: 3-2-3-2 / 5-3-2",
-    farg: "bg-green-800",
-    innehall: [
-      {
-        typ: "underrubrik",
-        text: "Uppbyggnadsspel – från backlinje"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "Målvakten är startpunkt – alla tre backar är tillgängliga vid eget uppspel",
-          "Centerbbacken driver med bollen om rummet finns – vi söker inte alltid lättaste passet",
-          "De två defensiva mittfältarna (DM) positionerar sig på varsin sida om backlinjen – en spelbarhetsyta, en djupled",
-          "Vi spelar ut press med kort spel – vi kastar INTE bollen långa om vi kan spela kort",
-          "Regel: om vi tappar boll bakåt i eget straffområde → omedelbar press"
-        ]
-      },
-      {
-        typ: "underrubrik",
-        text: "Spel genom mittfält"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "De två centrala mittfältarna (CM) är lagets motor – de rör sig konstant för att erbjuda passningsalternativ",
-          "CM1 (defensivt): positionerar sig alltid bakom bolllinjen, ger säkerhetspassning bakåt",
-          "CM2 (offensivt): rör sig framåt i rummet, tar emot vänd, driver mot straffområdet",
-          "Ytterspelarna breddar spelet – håller sig breda tills vi är i straffområdeszonen",
-          "Nyckelprincipen: aldrig mer än 2 touch i mittfältet utan syfte – vänd snabbt, spela framåt om möjligheten finns"
-        ]
-      },
-      {
-        typ: "underrubrik",
-        text: "Anfallsspel – skapa chanser"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "Vi skapar chanser via kombinationer nära straffområdet – inte via långa bollar",
-          "Forwards rör sig i djupled för att skapa rum för CM2 att komma in i",
-          "Inlägg från kanten efter att yttern passerat backen – specifik avslutare rör sig på bortre stolpen",
-          "Om inget djupled finns: bakåtspel och omstart via DM"
-        ]
-      },
-      {
-        typ: "underrubrik",
-        text: "Försvarsspel – 5-3-2"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "Vi försvarar kompakt i två block: 5 i bakre linjen, 3 i mellanzonen",
-          "De två forwards pressare högt – styr motst. mot kant, inte centralt",
-          "Mittfältstrojkan stänger mellanrummen – aldrig tre-fyra meter gap mellan linjerna",
-          "Ytterbackarna stannar i linje med centralbackarna tills bollen passerar mittlinjen",
-          "Vid inlägg: en back markerar bortre stolpen, en centralback frontmarkar"
-        ]
-      },
-      {
-        typ: "underrubrik",
-        text: "Omställningar"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "Vid bollvinst: titta DIREKT framåt – kan vi kontra? Då kontraar vi. Om inte: behåll bollen och bygg om",
-          "Vid bolltapp: närmaste 2-3 spelare pressar omedelbart – alla andra springer tillbaka i linje",
-          "Omst. till försvar = 3 sekunder. Är vi inte i linje på 3 sek har vi misslyckats",
-          "CM1 är alltid ansvarig för att ropa omst. till försvar"
-        ]
-      }
+    id:"spelidé", ikon:"⚽", rubrik:"Vår spelidé (3-2-3-2 / 5-3-2)", farg:"bg-green-800",
+    innehall:[
+      {typ:"underrubrik",text:"Uppbyggnad"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Vi startar via backlinjen – undviker långa bollar när vi kan spela.",
+        "Minst ett mittfältsalternativ ska alltid vara spelbart.",
+        "Vi vill spela genom lagdelar, inte förbi.",
+        "Nyckel: Se framåt – spela framåt – annars säkra.",
+      ]},
+      {typ:"underrubrik",text:"Mittfält – kritisk del för oss"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Två centrala mittfältare: en spelvändare (tempo, riktning) + en balansspelare (säkerhet, stöd).",
+        "Yttrar ska ge bredd och spelbarhet.",
+        "Krav: max 2 tillslag i press, alltid rörelse före boll.",
+      ]},
+      {typ:"underrubrik",text:"Anfallsspel"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Vi vill komma centralt när vi kan.",
+        "Djupledslöpningar bakom backlinjen.",
+        "Minst 2 spelare i box vid inlägg.",
+      ]},
+      {typ:"underrubrik",text:"Försvarsspel (5-3-2)"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Wingbacks ner → tydlig 5-linje.",
+        "Centralt kompakt – styr spelet utåt.",
+        "Nyckel: Stäng mitten först.",
+      ]},
+      {typ:"underrubrik",text:"Omställningar"},
+      {typ:"lista",rubrik:"Vid bollvinst:",punkter:[
+        "Första tanke framåt.",
+        "Om inte → säkra boll inom laget.",
+      ]},
+      {typ:"lista",rubrik:"Vid bolltapp:",punkter:[
+        "Direkt press i 3 sekunder.",
+        "Fall ner i formation om vi inte vinner tillbaka direkt.",
+      ]},
     ]
   },
   {
-    id: "träning",
-    ikon: "🏋️",
-    rubrik: "Våra träningsprinciper",
-    farg: "bg-amber-700",
-    innehall: [
-      {
-        typ: "lista",
-        rubrik: "Hur vi tränar uppspel och mittfältsspel:",
-        punkter: [
-          "Rondo 5+2 och 4+1 – spelarna lär sig stödvinklar och spelbarhet under press",
-          "Spelmomentövningar 4v4 + joker – mittfältsroller tränas i miniformat",
-          "Positionsspel med zoner – CM-rollen isoleras: ta emot, vänd, spela framåt",
-          "Vi stoppar aldrig övningen för att visa – vi ställer frågor efter"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Hur vi undviker bolltapp centralt:",
-        punkter: [
-          "Regel i träning: tappar CM2 boll centralt → laget diskuterar varför direkt efter",
-          "Vi tränar specifikt 1v1 och 2v2 i mittfältet – vinna dueller, skydda bollen",
-          "Vid press: lyft blicken INNAN du tar emot – se vart du ska spela",
-          "Touchbegränsningar i övningar: 2 touch tvingar snabbare beslutsfattande"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Matchlika situationer:",
-        punkter: [
-          "Minst 60% av varje träning är spel eller spelmoment – inte isolerade tekniska övningar",
-          "Vi sätter alltid kontext: Ni är 0-0, 20 min kvar, motst. pressar högt – hur spelar ni?",
-          "Spelarna fattar egna beslut i träning – tränaren coachar inte varje bollkontakt"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Kravbild:",
-        punkter: [
-          "Högt tempo i övningar – lågt tempo i match = fel träning",
-          "Alla förväntas prova nytt och misslyckas i träning",
-          "Intensitet mäts i antal beslut per minut – inte i hur fort du springer"
-        ]
-      }
+    id:"värdegrund", ikon:"❤️", rubrik:"Värdegrund i beteende", farg:"bg-blue-800",
+    innehall:[
+      {typ:"underrubrik",text:"Trygghet"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Träning: Vi skrattar, vågar göra fel – ingen klagar på misstag.",
+        "Match: Vi gnäller inte på lagkamrater, vi fortsätter spela efter misstag.",
+        "Ledare: Korrigerar utan att sänka, lyfter det som funkar.",
+        "Spelare: Peppar minst 1 lagkamrat varje träning.",
+      ]},
+      {typ:"underrubrik",text:"Respekt"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Träning: Lyssnar när andra pratar, full fokus i övningar.",
+        "Match: Accepterar domslut, inga negativa kommentarer.",
+      ]},
+      {typ:"underrubrik",text:"Ansvar"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Träning: Kommer i tid och redo, kör varje övning fullt ut.",
+        "Match: Följer spelidé även under press, jobbar hem direkt efter bolltapp.",
+      ]},
+      {typ:"underrubrik",text:"Glädje"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Träning: Högt tempo och energi i alla övningar.",
+        "Match: Fira varandras aktioner – inte bara mål.",
+      ]},
+      {typ:"underrubrik",text:"Utveckling"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Träning: Vågar välja svåra alternativ, testar nytt varje vecka.",
+        "Match: Spelar så vi tränar – inte säkert bara för att vinna.",
+      ]},
     ]
   },
   {
-    id: "ledarskap",
-    ikon: "👥",
-    rubrik: "Vårt ledarskap",
-    farg: "bg-purple-800",
-    innehall: [
-      {
-        typ: "lista",
-        rubrik: "Hur vi coachar i spelidén:",
-        punkter: [
-          "Vi coachar position och rörelse – inte teknik i match",
-          "En coachningspunkt per halvlek i match – inte 10 saker på en gång",
-          "Vi stopper aldrig spelet i match för att förklara – det görs i halvtid eller efter"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Feedback – frågor före instruktioner:",
-        punkter: [
-          "Vad såg du just innan du fick bollen?",
-          "Vad hade hänt om du spelat in i centrum istället?",
-          "Vad tyckte du gick bra i den situationen?",
-          "Vi berättar inte svaret direkt – vi låter spelaren tänka 3-4 sekunder"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Bygga trygghet och mod:",
-        punkter: [
-          "Misstag i träning kommenteras aldrig negativt av tränare – vi analyserar",
-          "Spelare som provar svårt pass och tappar bollen får positiv feedback för modets skull",
-          "Vi skapar aldrig press med ord som Varför, Alltid, Aldrig mot en spelare",
-          "Föräldrar coachar aldrig från läktaren under match – detta är avtalat"
-        ]
-      }
+    id:"träning", ikon:"🏋️", rubrik:"Vårt träningssätt", farg:"bg-amber-700",
+    innehall:[
+      {typ:"lista",rubrik:"Fokus: mittfält & bolltapp",punkter:[
+        "Smålagsspel med centrala ytor.",
+        "Övertal centralt: 4v2, 5v3.",
+        "Spel med begränsade tillslag.",
+        "Max 2 tillslag i mittenzon, poäng för att spela igenom mittfält.",
+      ]},
+      {typ:"lista",rubrik:"Beslutsfattande",punkter:[
+        "Alltid val: passa, driva, vända.",
+        "Övningar där spelaren måste läsa situation – inte bara följa mönster.",
+      ]},
+      {typ:"lista",rubrik:"Blå / Vit – nivåanpassning",punkter:[
+        "Blå: Fler tillslag, mer tid, fokus på trygghet och teknik.",
+        "Vit: Tempo, färre tillslag, beslut under press.",
+        "Spelare får ibland välja själva → ansvar + ärlighet.",
+      ]},
+      {typ:"lista",rubrik:"Kravbild",punkter:[
+        "Högt tempo i allt.",
+        "Korta instruktioner – mycket spel.",
+        "Feedback i stunden.",
+      ]},
     ]
   },
   {
-    id: "spelaransvar",
-    ikon: "🎯",
-    rubrik: "Spelarnas ansvar",
-    farg: "bg-red-800",
-    innehall: [
-      {
-        typ: "lista",
-        rubrik: "Som mittfältare (CM1/CM2) förväntar vi att du:",
-        punkter: [
-          "Alltid erbjuder ett passningsalternativ – rör dig INNAN bollen kommer",
-          "Lyfter blicken vid varje bollmottagning och ser nästa pass",
-          "Kommunicerar högt: Vänd! Tid! Press! till medspelaren med boll",
-          "Aldrig gömmer dig i svåra situationer – be alltid om bollen"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Som ytter förväntar vi att du:",
-        punkter: [
-          "Håller bredd i uppbyggnadsfasen – inte driftar in utan signal",
-          "Driver 1v1 mot ytterback när du får bollen vänd",
-          "Väljer inlägg eller inpassning beroende på hur backen ställer sig",
-          "Springer tillbaka i 5-3-2-linjen direkt vid bolltapp"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "I träning och match förväntar vi oss av alla:",
-        punkter: [
-          "Du är alltid i tid – 15 min före start",
-          "Du ger 100% i varje övning – inte bara i match",
-          "Du stöttar lagkamrater som gör misstag",
-          "Du ber om feedback – väntar inte på att tränaren ska komma"
-        ]
-      }
+    id:"ledarskap", ikon:"👥", rubrik:"Vårt ledarskap", farg:"bg-purple-800",
+    innehall:[
+      {typ:"lista",rubrik:"Vi:",punkter:[
+        "Ställer krav – men skapar trygghet först.",
+        "Coachar med frågor: Vad såg du där? Vilket annat alternativ fanns?",
+        "Säger: Bra att du försöker spela framåt – inte: Slå bort den där.",
+      ]},
     ]
   },
   {
-    id: "praktik",
-    ikon: "📅",
-    rubrik: "Hur det ser ut i praktiken",
-    farg: "bg-teal-700",
-    innehall: [
-      {
-        typ: "underrubrik",
-        text: "Exempel: en träningsvecka med match på lördag"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "Måndag: Teknik + rörelse – individuell bollkontroll, passning under rörelse, rondo. Fokus: spelbarhet",
-          "Onsdag: Taktik + spelmoment – 6v6 med positionsroller, 3-2-3-2 vs 5-3-2, omst.-övningar. Fokus: mittfältsspelet",
-          "Torsdag: Matchförberedelse – 8v8, spelidén i helfarts matchsimulering. 2 coachingpunkter inför lördag",
-          "Lördag: Match – max 1 coachingpunkt per halvlek. Spela idén"
-        ]
-      },
-      {
-        typ: "underrubrik",
-        text: "Efter matchen: analys → träning"
-      },
-      {
-        typ: "lista",
-        rubrik: null,
-        punkter: [
-          "Direkt efter match: Vad gick bra? Vad vill vi bli bättre på? (5 min, spelarna pratar)",
-          "Måndag: tränarna väljer 1-2 situationer från matchen att jobba på i övningar",
-          "Vi filmar inga matcher – men tränarna antecknar 3-4 situationer under matchen",
-          "Analysen syns i valet av övningar – inte i långa genomgångar"
-        ]
-      },
-      {
-        typ: "lista",
-        rubrik: "Tre konkreta coachingpunkter i match:",
-        punkter: [
-          "CM – vänd snabbare. Du har mer tid än du tror om du lyfter blicken",
-          "Ytter – håll bredd. Gå inte in centralt förrän bollen är i straffomrädeszonen",
-          "Alla – 3-sekundersregeln. Är vi inte i linje 3 sek efter bolltapp så har vi misslyckats"
-        ]
-      }
+    id:"spelaransvar", ikon:"🎯", rubrik:"Spelarnas ansvar", farg:"bg-red-800",
+    innehall:[
+      {typ:"lista",rubrik:"I träning:",punkter:[
+        "Alltid maxinsats.",
+        "Våga spela svårt.",
+      ]},
+      {typ:"lista",rubrik:"I match:",punkter:[
+        "Följa spelidé.",
+        "Direkt reaktion efter bolltapp.",
+      ]},
+      {typ:"lista",rubrik:"Mot laget:",punkter:[
+        "Peppa mer än du kritiserar.",
+        "Hjälp lagkamrat att lyckas.",
+      ]},
     ]
-  }
-];
+  },
+  {
+    id:"praktik", ikon:"📅", rubrik:"Praktiska exempel", farg:"bg-teal-700",
+    innehall:[
+      {typ:"underrubrik",text:"Träningsvecka"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Pass 1: Teknik + smålagsspel centralt. Fokus: första touch + beslut.",
+        "Pass 2: Spelövningar 6v6 / 8v8. Fokus: spela genom mittfält.",
+        "Pass 3: Matchförberedande spel. Fokus: positioner + lagdelar.",
+      ]},
+      {typ:"underrubrik",text:"Efter match"},
+      {typ:"lista",rubrik:null,punkter:[
+        "Kort analys: Vad funkade? Vad behöver förbättras?",
+        "Välj 1 fokus: t.ex. för många bolltapp centralt.",
+        "Nästa träning: övningar riktade mot detta.",
+      ]},
+      {typ:"lista",rubrik:"3 coachpunkter i match:",punkter:[
+        "Spelbar mittfältare!",
+        "Se framåt först!",
+        "Reaktion direkt!",
+      ]},
+    ]
+  },
+]
 
 const ArbetssattVy = ({onBack}) => {
   const [openSek, setOpenSek] = React.useState("filosofi");
@@ -1236,9 +1172,9 @@ const VARDERINGAR = [
     beskr:"Vi är ett lag – på och utanför planen. Vi bryr oss om varandra, firar tillsammans och stöttar varandra i motgång.",
     citat:"Ingen vinner ensam. Laget är starkare än summan av dess delar.",
     praktik:[
-      "Lär dig alla lagkamraters namn och nummer",
-      "Peppa den som gör misstag – aldrig kritisera",
-      "Fira varandras framgångar lika mycket som dina egna",
+      "Peppa minst 1 lagkamrat varje träning",
+      "Gnäll aldrig på lagkamrater i match – fortsätt spela",
+      "Fira varandras aktioner, inte bara mål",
       "Stanna kvar och hjälp till efter träningen",
     ]
   },
@@ -1248,34 +1184,34 @@ const VARDERINGAR = [
     citat:"Bär tröjan med värdighet – den har burits av hundratals spelare före dig.",
     praktik:[
       "Visa respekt mot domaren, motståndare och publik",
-      "Kom alltid i tid – hellre 10 minuter tidigt",
-      "Ta hand om utrustningen – den är lagets gemensamma",
+      "Kom alltid 15 minuter tidigt",
       "Uppträd professionellt – på plan, i omklädningsrum, utanför",
+      "Ta hand om utrustningen – den är lagets gemensamma",
     ]
   },
   {
     ord:"ANSVAR", farg:"bg-red-800", icon:"🎯",
-    beskr:"Vi tar ansvar för oss själva och för laget. Vi visar upp på träning, vi förbereder oss och vi levererar.",
+    beskr:"Vi tar ansvar för oss själva och laget. Följer spelidé under press, jobbar hem direkt vid bolltapp.",
     citat:"Ditt nästa beslut är det viktigaste – ta det rätt.",
     praktik:[
-      "Meddela alltid om du inte kan komma till träning",
-      "Ge alltid 100% – även när det är tungt",
-      "Ta ansvar för dina misstag utan att skylla på andra",
-      "Lyssna på tränare och lagkamrater – du lär dig alltid något",
+      "Kom i tid och redo – varje gång",
+      "Ge alltid 100% i träning och match",
+      "Direkt reaktion efter bolltapp – alltid",
+      "Meddela alltid om du inte kan komma",
     ]
   },
   {
     ord:"GLÄDJE", farg:"bg-green-700", icon:"😄",
-    beskr:"Vi spelar fotboll för att det är kul. Glädjen är grunden – utan den är inget annat möjligt.",
+    beskr:"Vi spelar fotboll för att det är kul. Högt tempo och energi i alla övningar – fira aktioner inte bara mål.",
     citat:"Fotboll är ett sätt att umgås – det ska vara kul att komma till träning.",
     praktik:[
       "Ha kul – det är det viktigaste av allt",
-      "Skratta och skoja – men vet när det är dags att fokusera",
+      "Högt tempo och energi i varje övning",
+      "Fira varandras aktioner, inte bara mål",
       "Uppmuntra kreativitet och våga prova nytt",
-      "Varje träning och match är ett privilegium, inte en plikt",
     ]
   },
-];
+]
 
 const VarderingarVy = ({onBack}) => (
   <div className="min-h-screen bg-slate-100">
@@ -1340,29 +1276,40 @@ const VarderingarVy = ({onBack}) => (
 // ═══════════════════════════════════════════════════════════════════════
 // PLANERINGS VY (startsidan)
 // ═══════════════════════════════════════════════════════════════════════
-const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, syncBadge, trupp, onRefreshTrupp}) => {
+const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks}) => {
   const [openBlock, setOpenBlock] = useState(blocks[0]?.id||1);
   const [visaAvslutade, setVisaAvslutade] = useState(false);
   const [showGenModal, setShowGenModal] = useState(false);
   const [genSkeden, setGenSkeden] = useState([]);
+  const [lagTyp, setLagTyp] = useState("lag"); // "lag" | "mv"
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
 
   const getTranState = (bId,tNr) => appState[tranKey(bId,tNr)] || {};
   const setEvent = (bId,tNr,eid) => { const k=tranKey(bId,tNr); setAppState(p=>({...p,[k]:{...p[k],event:eid}})); };
   const isAvslutad = (bId,tNr) => !!getTranState(bId,tNr).avslutad;
 
-  const totalt = blocks.reduce((s,b)=>s+b.trän.length,0);
-  const avslutade = blocks.reduce((s,b)=>s+b.trän.filter(t=>isAvslutad(b.id,t.nr)).length,0);
-  const koppladeEvent = blocks.reduce((s,b)=>s+b.trän.filter(t=>getTranState(b.id,t.nr).event).length,0);
+  const aktiveraBlocks = lagTyp==="mv" ? mvBlocks : blocks;
+  const totalt = aktiveraBlocks.reduce((s,b)=>s+b.trän.length,0);
+  const avslutade = aktiveraBlocks.reduce((s,b)=>s+b.trän.filter(t=>isAvslutad(b.id,t.nr)).length,0);
+  const koppladeEvent = aktiveraBlocks.reduce((s,b)=>s+b.trän.filter(t=>getTranState(b.id,t.nr).event).length,0);
 
   // Check if last block is complete
-  const sistaBlock = blocks[blocks.length-1];
+  const sistaBlock = aktiveraBlocks[aktiveraBlocks.length-1];
   const sistaBlockKlar = sistaBlock && sistaBlock.trän.every(t=>isAvslutad(sistaBlock.id,t.nr));
 
   const handleGenBlock = () => {
-    const nb = genBlock(blocks, genSkeden.length > 0 ? genSkeden : null);
-    const newBlocks = [...blocks, nb];
-    setBlocks(newBlocks);
-    setOpenBlock(nb.id);
+    if (lagTyp === "mv") {
+      const nb = genMVBlock(mvBlocks);
+      const newMv = [...mvBlocks, nb];
+      setMvBlocks(newMv);
+      setOpenBlock(nb.id);
+    } else {
+      const nb = genBlock(blocks, genSkeden.length > 0 ? genSkeden : null);
+      const newBlocks = [...blocks, nb];
+      setBlocks(newBlocks);
+      setOpenBlock(nb.id);
+    }
     setShowGenModal(false);
     setGenSkeden([]);
   };
@@ -1418,6 +1365,18 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
           </div>
         </div>
 
+        {/* Lagtyp toggle */}
+        <div className="bg-white rounded-2xl p-1.5 shadow-sm ring-1 ring-slate-200 flex gap-1.5">
+          <button onClick={()=>setLagTyp("lag")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black transition-all ${lagTyp==="lag"?"bg-blue-950 text-white shadow":"text-slate-500 hover:bg-slate-50"}`}>
+            ⚽ Lagträning
+          </button>
+          <button onClick={()=>setLagTyp("mv")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-black transition-all ${lagTyp==="mv"?"bg-violet-700 text-white shadow":"text-slate-500 hover:bg-slate-50"}`}>
+            🧤 Målvaktsträning
+          </button>
+        </div>
+
         {/* Generera block-prompt */}
         {sistaBlockKlar&&(
           <div className="bg-green-50 border border-green-300 rounded-2xl p-4 flex items-center justify-between gap-3">
@@ -1432,16 +1391,34 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
         )}
 
         {/* BLOCK */}
-        {blocks.map((block, bi)=>{
+        {aktiveraBlocks.map((block, bi)=>{
           const isOpen=openBlock===block.id;
-          const bc=BLOCKFARG[bi%BLOCKFARG.length];
+          const bc = (block.typ==="MV") ? MV_BLOCKFARG : BLOCKFARG[bi%BLOCKFARG.length];
           const blokAvslutade=block.trän.filter(t=>isAvslutad(block.id,t.nr)).length;
           const synliga=block.trän.filter(t=>visaAvslutade||!isAvslutad(block.id,t.nr));
           const period=blockPeriod(block,appState);
 
           return(
             <div key={block.id} className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
-              <button onClick={()=>setOpenBlock(isOpen?0:block.id)} className={`w-full ${bc} text-white px-4 py-3 flex items-center justify-between text-left hover:opacity-95 transition-opacity`}>
+              {/* Drag handle */}
+              <div
+                draggable
+                onDragStart={()=>setDragIdx(bi)}
+                onDragOver={e=>{e.preventDefault();setDragOverIdx(bi);}}
+                onDrop={()=>{
+                  if(dragIdx===null||dragIdx===bi) return;
+                  const lst = [...aktiveraBlocks];
+                  const [moved] = lst.splice(dragIdx,1);
+                  lst.splice(bi,0,moved);
+                  if(lagTyp==="mv") setMvBlocks(lst); else setBlocks(lst);
+                  setDragIdx(null); setDragOverIdx(null);
+                }}
+                onDragEnd={()=>{setDragIdx(null);setDragOverIdx(null);}}
+                className={`${bc} px-2 py-3 flex items-center cursor-grab active:cursor-grabbing select-none ${dragOverIdx===bi?"ring-2 ring-yellow-400 ring-inset":""}`}
+                title="Dra för att byta ordning">
+                <span className="text-white/40 text-xs">⠿</span>
+              </div>
+              <button onClick={()=>setOpenBlock(isOpen?0:block.id)} className={`flex-1 ${bc} text-white px-4 py-3 flex items-center justify-between text-left hover:opacity-95 transition-opacity`}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-black text-base">{block.titel}</span>
                   <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold">{period}</span>
@@ -1450,7 +1427,7 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {blocks.length > 1 && (
-                    <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){setBlocks(prev=>prev.filter(b=>b.id!==block.id));}}}
+                    <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){if(lagTyp==="mv"){setMvBlocks(prev=>prev.filter(b=>b.id!==block.id));}else{setBlocks(prev=>prev.filter(b=>b.id!==block.id));}}}}
                       className="p-1 rounded-lg hover:bg-red-500/30 transition-colors opacity-70 hover:opacity-100" title="Ta bort block">
                       <X className="h-4 w-4"/>
                     </button>
@@ -1596,6 +1573,7 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
 export default function App() {
   const [appState, setAppState] = useState(() => lsGet("_state", {}));
   const [blocks,   setBlocks]   = useState(() => lsGet("_blocks", null) || GRUNDBLOCK);
+  const [mvBlocks, setMvBlocks] = useState(() => lsGet("_mvblocks", null) || []);
   const [favs,     setFavs]     = useState(() => loadF());
   const [view,     setView]     = useState("plan");
   const [trupp,    setTrupp]    = useState(TRUPP);
@@ -1611,32 +1589,34 @@ export default function App() {
     Promise.all([
       supaGet("rik_kv", "state"),
       supaGet("rik_kv", "blocks"),
-    ]).then(([remoteState, remoteBlocks]) => {
-      if (remoteState) {
-        setAppState(remoteState);
-        lsSet("_state", remoteState);
-      }
-      if (remoteBlocks) {
-        setBlocks(remoteBlocks);
-        lsSet("_blocks", remoteBlocks);
-      }
+      supaGet("rik_kv", "mvblocks"),
+    ]).then(([remoteState, remoteBlocks, remoteMvBlocks]) => {
+      if (remoteState)  { setAppState(remoteState);     lsSet("_state", remoteState); }
+      if (remoteBlocks) { setBlocks(remoteBlocks);       lsSet("_blocks", remoteBlocks); }
+      if (remoteMvBlocks){ setMvBlocks(remoteMvBlocks); lsSet("_mvblocks", remoteMvBlocks); }
       setSyncStatus("synced");
     }).catch(() => setSyncStatus("offline"));
   }, []);
 
   // ── Synka till Supabase med debounce (500ms) ─────────────────────
-  const syncState = useCallback((newState, newBlocks) => {
-    lsSet("_state",  newState);
-    lsSet("_blocks", newBlocks);
+  const syncAll = useCallback((newState, newBlocks, newMvBlocks) => {
+    lsSet("_state",    newState);
+    lsSet("_blocks",   newBlocks);
+    lsSet("_mvblocks", newMvBlocks);
     if (!SUPA_OK) return;
     clearTimeout(syncTimer.current);
     setSyncStatus("saving");
     syncTimer.current = setTimeout(async () => {
-      const ok1 = await supaSet("rik_kv", "state",  newState);
-      const ok2 = await supaSet("rik_kv", "blocks", newBlocks);
-      setSyncStatus(ok1 && ok2 ? "synced" : "offline");
+      const [ok1, ok2, ok3] = await Promise.all([
+        supaSet("rik_kv", "state",    newState),
+        supaSet("rik_kv", "blocks",   newBlocks),
+        supaSet("rik_kv", "mvblocks", newMvBlocks),
+      ]);
+      setSyncStatus(ok1 && ok2 && ok3 ? "synced" : "offline");
     }, 500);
   }, []);
+  // Keep syncState alias for backward compat
+  const syncState = (ns, nb) => syncAll(ns, nb, mvBlocks);
 
   const updateAppState = useCallback((newState) => {
     setAppState(newState);
@@ -1645,8 +1625,13 @@ export default function App() {
 
   const updateBlocks = useCallback((newBlocks) => {
     setBlocks(newBlocks);
-    syncState(appState, newBlocks);
-  }, [appState, syncState]);
+    syncAll(appState, newBlocks, mvBlocks);
+  }, [appState, mvBlocks, syncAll]);
+
+  const updateMvBlocks = useCallback((newMvBlocks) => {
+    setMvBlocks(newMvBlocks);
+    syncAll(appState, blocks, newMvBlocks);
+  }, [appState, blocks, syncAll]);
 
   const getTranState = (bId, tNr) => appState[tranKey(bId, tNr)] || {};
   const setTranState = (bId, tNr, upd) => {
@@ -1735,6 +1720,8 @@ export default function App() {
       onVarderingar={()=>setView("varderingar")}
       onArbetssatt={()=>setView("arbetssatt")}
       syncBadge={<SyncBadge/>}
+      mvBlocks={mvBlocks}
+      setMvBlocks={updateMvBlocks}
       trupp={trupp}
       onRefreshTrupp={handleRefreshTrupp}
     />
