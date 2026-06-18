@@ -97,18 +97,20 @@ const genBlock = (existingBlocks, selectedSkeden) => {
   const mall = BLOCK_MALLAR[mallIdx];
   const activeSkeden = selectedSkeden && selectedSkeden.length > 0 ? selectedSkeden : mall.skeden;
 
-  // Pool of exercises for this skeende selection
-  const ovnPool = Object.values(OVN).filter(o => activeSkeden.includes(o.skede));
+  // Pool of exercises — ONLY PDF-exercises (have diagrams, id starts with "ovningar")
+  // OVN_SVFF hand-curated exercises are excluded from block generation
+  const pdfOvn = Object.values(OVN).filter(o => o.id.startsWith("ovningar"));
+  const ovnPool = pdfOvn.filter(o => activeSkeden.includes(o.skede));
   const byTyp = {
     forb: ovnPool.filter(o => o.typ === "Färdighetsövning" || o.typ === "Styrkeövning" || o.typ === "Fysisk övning"),
     spel: ovnPool.filter(o => o.typ === "Spelövning"),
     alla: ovnPool,
   };
 
-  // Get previous block exercises for REP candidates
+  // Get previous block exercises for REP candidates — also only PDF exercises
   const prevBlock = existingBlocks[existingBlocks.length - 1];
   const prevOvnIds = prevBlock ? prevBlock.trän.flatMap(t => t.delar.filter(d=>d.ovnId).map(d=>d.ovnId)) : [];
-  const repCandidates = prevOvnIds.filter(id => OVN[id]);
+  const repCandidates = prevOvnIds.filter(id => OVN[id] && id.startsWith("ovningar"));
 
   let repCount = 0;
 
@@ -140,8 +142,17 @@ const genBlock = (existingBlocks, selectedSkeden) => {
 
     for (const d of mallDelar) {
       if (d.ovnId) {
-        const o = OVN[d.ovnId];
-        const ovnId = o ? d.ovnId : (pick(byTyp.alla)||{}).id;
+        // Replace hand-curated IDs with PDF exercises from the pool
+        const isPdf = d.ovnId.startsWith("ovningar");
+        let ovnId = isPdf && OVN[d.ovnId] ? d.ovnId : null;
+        if (!ovnId) {
+          // Pick a PDF exercise of matching typ
+          const typPool = d.typ === "Spelövning" ? byTyp.spel : byTyp.forb.length ? byTyp.forb : byTyp.alla;
+          const p = pick(typPool);
+          ovnId = p?.id || null;
+        } else {
+          usedOvnIds.add(ovnId);
+        }
         if (!ovnId) { delar.push({typ:d.typ,tid:d.tid,namn:d.namn||d.typ,beskr:d.beskr||"",blå:d.blå||"",vit:d.vit||"",rep:false}); continue; }
         const oo = OVN[ovnId];
         if (oo?.typ==="Färdighetsövning"||oo?.typ==="Styrkeövning") hasFardig=true;
