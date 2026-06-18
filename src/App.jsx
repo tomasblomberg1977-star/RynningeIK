@@ -5,11 +5,22 @@ import {
   ChevronDown, ChevronUp, ArrowLeft, Flag, Eye, Home, Edit3, PlusCircle,
   RefreshCw, Calendar, X, Check, Wifi, WifiOff, Loader2,
 } from "lucide-react";
-import { TRUPP, SKEDEN, OVN as OVN_SVFF, KALEVENT, BLOCK_MALLAR, GRUNDBLOCK } from "./data.js";
+import { TRUPP, SKEDEN, OVN as OVN_SVFF, KALEVENT as KALEVENT_ALL, BLOCK_MALLAR, GRUNDBLOCK } from "./data.js";
 import { OVN_PDF } from "./ovningar.js";
 
 // Merge all exercises — SvFF hand-curated exercises take precedence
 const OVN = { ...OVN_PDF, ...OVN_SVFF };
+
+// Filter calendar events: 7 days back to 180 days forward from today
+const KALEVENT = (() => {
+  const now = new Date();
+  const from = new Date(now); from.setDate(from.getDate() - 7);
+  const to   = new Date(now); to.setDate(to.getDate() + 180);
+  return KALEVENT_ALL.filter(e => {
+    const d = new Date(e.datum + "T12:00:00");
+    return d >= from && d <= to;
+  });
+})();
 
 // ─── SUPABASE CONFIG ──────────────────────────────────────────────────
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "";
@@ -55,7 +66,7 @@ const saveF = (f) => lsSet("_favs", f);
 // ─── HELPERS ──────────────────────────────────────────────────────────
 const fmt       = (s)     => String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
 const tranKey   = (bId,nr)=> `${bId}-${nr}`;
-const TYPFARG   = { Uppvärmning:"bg-orange-100 text-orange-800",Teknik:"bg-blue-100 text-blue-800",Taktik:"bg-indigo-100 text-indigo-800",Spelövning:"bg-emerald-100 text-emerald-800",Matchspel:"bg-purple-100 text-purple-800",Avslut:"bg-slate-100 text-slate-600" };
+const TYPFARG   = { Uppvärmning:"bg-orange-100 text-orange-800",Teknik:"bg-blue-100 text-blue-800",Taktik:"bg-indigo-100 text-indigo-800",Spelövning:"bg-emerald-100 text-emerald-800",Matchspel:"bg-purple-100 text-purple-800",Avslut:"bg-slate-100 text-slate-600",Målvaktsträning:"bg-violet-100 text-violet-800" };
 const DAGFARG   = { Måndag:"bg-blue-800",Onsdag:"bg-indigo-800",Torsdag:"bg-amber-700" };
 const BLOCKFARG = ["bg-green-700","bg-blue-700","bg-amber-600","bg-purple-700","bg-slate-600","bg-teal-700","bg-rose-700"];
 
@@ -101,6 +112,7 @@ const genBlock = (existingBlocks, selectedSkeden) => {
   // OVN_SVFF hand-curated exercises are excluded from block generation
   const pdfOvn = Object.values(OVN).filter(o => o.id.startsWith("ovningar"));
   const ovnPool = pdfOvn.filter(o => activeSkeden.includes(o.skede));
+  const mvPool  = pdfOvn.filter(o => o.skede === "MV"); // MV always available regardless of focus
   const byTyp = {
     forb: ovnPool.filter(o => o.typ === "Färdighetsövning" || o.typ === "Styrkeövning" || o.typ === "Fysisk övning"),
     spel: ovnPool.filter(o => o.typ === "Spelövning"),
@@ -187,6 +199,28 @@ const genBlock = (existingBlocks, selectedSkeden) => {
     if (!delar.find(d=>d.typ==="Uppvärmning")) {
       delar.unshift({typ:"Uppvärmning",tid:12,namn:"Uppvärmning",beskr:"",blå:"",vit:"",rep:false});
     }
+
+    // Always insert a Målvaktsträning del right after Uppvärmning
+    if (!delar.find(d=>d.typ==="Målvaktsträning")) {
+      const usedMvIds = new Set(delar.filter(d=>d.ovnId).map(d=>d.ovnId));
+      const availMv = mvPool.filter(o => !usedMvIds.has(o.id));
+      if (availMv.length > 0) {
+        const mvOvn = availMv[Math.floor(Math.random() * Math.min(availMv.length, 8))];
+        const mvDel = {
+          typ: "Målvaktsträning",
+          tid: 15,
+          namn: mvOvn.namn,
+          ovnId: mvOvn.id,
+          rep: false,
+          beskr: `${mvOvn.vad}. ${mvOvn.varfor}`,
+          blå: "Mv fokus på teknik – tränaren ger individuell feedback.",
+          vit: "Utespelarna håller passningsboll eller individuell teknik.",
+        };
+        const uppIdx = delar.findIndex(d=>d.typ==="Uppvärmning");
+        delar.splice(uppIdx + 1, 0, mvDel);
+      }
+    }
+
     // Ensure Avslut exists
     if (!delar.find(d=>d.typ==="Avslut")) {
       delar.push({typ:"Avslut",tid:5,namn:"Cirkeln – vad tog vi med oss?",beskr:"",blå:"",vit:"",rep:false});
@@ -200,10 +234,17 @@ const genBlock = (existingBlocks, selectedSkeden) => {
     };
   });
 
-  const skedeLabel = activeSkeden.join(" + ");
+  const skedeLabels = {
+    ANF:"Anfallsspel", FORS:"Försvarsspel", OMANF:"Omst.→Anfall",
+    OMFOR:"Omst.→Försvar", MV:"Målvaktsträning", FYS:"Fysisk träning", PREP:"Förberedelse"
+  };
+  const skedeLabel = activeSkeden.map(s=>skedeLabels[s]||s).join(" & ");
+  const blockTitel = selectedSkeden && selectedSkeden.length > 0
+    ? `Block ${nextId} – ${skedeLabel}`
+    : `Block ${nextId} – ${mall.titel}`;
   return {
     id: nextId,
-    titel: `Block ${nextId} – ${mall.titel}`,
+    titel: blockTitel,
     period: "", pfarg: "var",
     svffFokus: `${skedeLabel}: ${mall.svffFokus}`,
     vardeord: mall.vardeord,
@@ -815,10 +856,121 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
   );
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════
+// VÄRDERINGAR VIEW
+// ═══════════════════════════════════════════════════════════════════════
+const VARDERINGAR = [
+  {
+    ord:"GEMENSKAP", farg:"bg-blue-900", icon:"🤝",
+    beskr:"Vi är ett lag – på och utanför planen. Vi bryr oss om varandra, firar tillsammans och stöttar varandra i motgång.",
+    citat:""Ingen vinner ensam. Laget är starkare än summan av dess delar."",
+    praktik:[
+      "Lär dig alla lagkamraters namn och nummer",
+      "Peppa den som gör misstag – aldrig kritisera",
+      "Fira varandras framgångar lika mycket som dina egna",
+      "Stanna kvar och hjälp till efter träningen",
+    ]
+  },
+  {
+    ord:"STOLTHET", farg:"bg-yellow-600", icon:"⭐",
+    beskr:"Vi representerar Rynninge IK med stolthet. Vi spelar i blåvitt, vi gör det rätt.",
+    citat:""Bär tröjan med värdighet – den har burits av hundratals spelare före dig."",
+    praktik:[
+      "Visa respekt mot domaren, motståndare och publik",
+      "Kom alltid i tid – hellre 10 minuter tidigt",
+      "Ta hand om utrustningen – den är lagets gemensamma",
+      "Uppträd professionellt – på plan, i omklädningsrum, utanför",
+    ]
+  },
+  {
+    ord:"ANSVAR", farg:"bg-red-800", icon:"🎯",
+    beskr:"Vi tar ansvar för oss själva och för laget. Vi visar upp på träning, vi förbereder oss och vi levererar.",
+    citat:""Ditt nästa beslut är det viktigaste – ta det rätt."",
+    praktik:[
+      "Meddela alltid om du inte kan komma till träning",
+      "Ge alltid 100% – även när det är tungt",
+      "Ta ansvar för dina misstag utan att skylla på andra",
+      "Lyssna på tränare och lagkamrater – du lär dig alltid något",
+    ]
+  },
+  {
+    ord:"GLÄDJE", farg:"bg-green-700", icon:"😄",
+    beskr:"Vi spelar fotboll för att det är kul. Glädjen är grunden – utan den är inget annat möjligt.",
+    citat:""Fotboll är ett sätt att umgås – det ska vara kul att komma till träning."",
+    praktik:[
+      "Ha kul – det är det viktigaste av allt",
+      "Skratta och skoja – men vet när det är dags att fokusera",
+      "Uppmuntra kreativitet och våga prova nytt",
+      "Varje träning och match är ett privilegium, inte en plikt",
+    ]
+  },
+];
+
+const VarderingarVy = ({onBack}) => (
+  <div className="min-h-screen bg-slate-100">
+    <div className="sticky top-0 z-30 bg-blue-950 border-b-4 border-yellow-400/50 shadow-xl px-4 py-3">
+      <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <HomeBtn onClick={onBack}/>
+          <span className="text-slate-500">·</span>
+          <div className="flex items-center gap-2">
+            <Star className="h-4 w-4 text-yellow-400"/>
+            <span className="text-white font-black text-sm">Värderingar</span>
+          </div>
+        </div>
+        <div className="text-yellow-400 text-[10px] font-semibold tracking-wide hidden sm:block">ETT SÄTT ATT UMGÅS</div>
+      </div>
+    </div>
+    <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      {/* Club intro */}
+      <div className="bg-blue-950 rounded-2xl p-5 text-white text-center">
+        <div className="text-2xl mb-2">⚽</div>
+        <div className="font-black text-xl">Rynninge IK</div>
+        <div className="text-blue-200 text-sm mt-1">Grundad 1932 · Grenadjärvallen · Örebro</div>
+        <div className="mt-3 text-yellow-400 font-black text-lg tracking-wide">ETT SÄTT ATT UMGÅS</div>
+        <div className="text-blue-200 text-xs mt-2 max-w-sm mx-auto leading-relaxed">
+          Vår slogan sammanfattar allt – fotboll är mer än ett spel. Det är hur vi lär oss, växer och bygger relationer som varar livet ut.
+        </div>
+      </div>
+      {/* Värdeord */}
+      {VARDERINGAR.map(v=>(
+        <div key={v.ord} className={`${v.farg} rounded-2xl overflow-hidden text-white shadow-lg`}>
+          <div className="px-5 py-4 flex items-center gap-3">
+            <span className="text-3xl">{v.icon}</span>
+            <div>
+              <div className="font-black text-2xl tracking-wide">{v.ord}</div>
+              <div className="text-white/80 text-sm mt-0.5">{v.beskr}</div>
+            </div>
+          </div>
+          <div className="bg-black/20 px-5 py-3">
+            <div className="text-white/70 text-xs italic mb-3">{v.citat}</div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-white/60 mb-2">I praktiken:</div>
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              {v.praktik.map((p,i)=>(
+                <div key={i} className="flex gap-2 text-xs text-white/90">
+                  <span className="text-white/40 flex-shrink-0">→</span>{p}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+      {/* SvFF-koppling */}
+      <div className="bg-white rounded-2xl p-5 ring-1 ring-slate-200 shadow-sm">
+        <div className="text-sm font-black text-slate-800 mb-2">🇸🇪 Koppling till SvFF Spelarutbildningsplan</div>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Rynninge IKs värderingar är förankrade i SvFF:s spelarutbildningsplan som betonar att fotboll ska vara rolig, meningsfull och utvecklande. Övningarna i träningsplanen är kopplade till ett värdeord per block — GEMENSKAP, STOLTHET, ANSVAR och GLÄDJE — och varje träning avslutas med en reflektion kring värdeordet.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
 // ═══════════════════════════════════════════════════════════════════════
 // PLANERINGS VY (startsidan)
 // ═══════════════════════════════════════════════════════════════════════
-const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, syncBadge}) => {
+const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, syncBadge, trupp, onRefreshTrupp}) => {
   const [openBlock, setOpenBlock] = useState(blocks[0]?.id||1);
   const [visaAvslutade, setVisaAvslutade] = useState(false);
   const [showGenModal, setShowGenModal] = useState(false);
@@ -862,8 +1014,14 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
             <button onClick={onOvningsbank} className="flex items-center gap-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-xl transition-colors">
               <BookOpen className="h-3.5 w-3.5"/>Övningar
             </button>
+            <button onClick={onVarderingar} className="flex items-center gap-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 px-3 py-2 rounded-xl transition-colors">
+              <Star className="h-3.5 w-3.5"/>Värderingar
+            </button>
             <button onClick={()=>setVisaAvslutade(v=>!v)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors ${visaAvslutade?"bg-yellow-400 text-blue-950 border-yellow-400":"bg-white/10 text-white border-white/20 hover:bg-white/20"}`}>
               <Eye className="h-3.5 w-3.5"/>{visaAvslutade?"Dölj avslutade":"Visa avslutade"}
+            </button>
+            <button onClick={onRefreshTrupp} className="flex items-center gap-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white border border-white/20 px-2.5 py-2 rounded-xl transition-colors" title="Uppdatera spelarlistan från laget.se">
+              <RefreshCw className="h-3.5 w-3.5"/>
             </button>
             {syncBadge}
           </div>
@@ -918,8 +1076,8 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                   <span className="text-xs bg-white/20 px-2 py-0.5 rounded">{blokAvslutade}/{block.trän.length} klara</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {bi>0&&(
-                    <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){setBlocks(blocks.filter(b=>b.id!==block.id));}}}
+                  {blocks.length > 1 && (
+                    <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){setBlocks(prev=>prev.filter(b=>b.id!==block.id));}}}
                       className="p-1 rounded-lg hover:bg-red-500/30 transition-colors opacity-70 hover:opacity-100" title="Ta bort block">
                       <X className="h-4 w-4"/>
                     </button>
@@ -1067,6 +1225,7 @@ export default function App() {
   const [blocks,   setBlocks]   = useState(() => lsGet("_blocks", null) || GRUNDBLOCK);
   const [favs,     setFavs]     = useState(() => loadF());
   const [view,     setView]     = useState("plan");
+  const [trupp,    setTrupp]    = useState(TRUPP);
   const [syncStatus, setSyncStatus] = useState(SUPA_OK ? "idle" : "offline");
   const [activeBlock, setActiveBlock] = useState(null);
   const [activeTran,  setActiveTran]  = useState(null);
@@ -1164,6 +1323,9 @@ export default function App() {
   if (view==="ovningar") return (
     <OvningsbankVy favs={favs} setFavs={f=>{setFavs(f);saveF(f);}} onBack={goHome} onVälj={null} väljLabel={null}/>
   );
+  if (view==="varderingar") return (
+    <VarderingarVy onBack={goHome}/>
+  );
   if (view==="redigera"&&resolvedBlock&&resolvedTran) return (
     <RedigeraVy block={resolvedBlock} tran={resolvedTran} onSpara={handleSparaRedigering} onBack={goHome}/>
   );
@@ -1178,13 +1340,26 @@ export default function App() {
       onFavToggle={f=>{setFavs(f);saveF(f);}}
     />
   );
+  const handleRefreshTrupp = () => {
+    // Fetches fresh player list — in production this would call laget.se API
+    // For now: show a prompt to paste updated data, or reset to default TRUPP
+    if (window.confirm("Återställ spelarlistan till standardlistan från laget.se?\nDetta ersätter eventuella lokala ändringar.")) {
+      setTrupp(TRUPP);
+      lsSet("_trupp", TRUPP);
+      alert("Spelarlistan uppdaterad! Tips: för live-synk med laget.se, exportera truppen som JSON och klistra in i inställningarna.");
+    }
+  };
+
   return (
     <PlaneringsVy
       blocks={blocks} appState={appState}
       setAppState={updateAppState} setBlocks={updateBlocks}
       onStartCoach={handleStartCoach} onVisaAvslutad={handleVisaAvslutad}
       onRedigera={handleRedigera} onOvningsbank={()=>setView("ovningar")}
+      onVarderingar={()=>setView("varderingar")}
       syncBadge={<SyncBadge/>}
+      trupp={trupp}
+      onRefreshTrupp={handleRefreshTrupp}
     />
   );
 }
