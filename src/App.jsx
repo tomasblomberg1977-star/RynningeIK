@@ -864,7 +864,7 @@ const VARDERINGAR = [
   {
     ord:"GEMENSKAP", farg:"bg-blue-900", icon:"🤝",
     beskr:"Vi är ett lag – på och utanför planen. Vi bryr oss om varandra, firar tillsammans och stöttar varandra i motgång.",
-    citat:""Ingen vinner ensam. Laget är starkare än summan av dess delar."",
+    citat:"Ingen vinner ensam. Laget är starkare än summan av dess delar.",
     praktik:[
       "Lär dig alla lagkamraters namn och nummer",
       "Peppa den som gör misstag – aldrig kritisera",
@@ -875,7 +875,7 @@ const VARDERINGAR = [
   {
     ord:"STOLTHET", farg:"bg-yellow-600", icon:"⭐",
     beskr:"Vi representerar Rynninge IK med stolthet. Vi spelar i blåvitt, vi gör det rätt.",
-    citat:""Bär tröjan med värdighet – den har burits av hundratals spelare före dig."",
+    citat:"Bär tröjan med värdighet – den har burits av hundratals spelare före dig.",
     praktik:[
       "Visa respekt mot domaren, motståndare och publik",
       "Kom alltid i tid – hellre 10 minuter tidigt",
@@ -886,7 +886,7 @@ const VARDERINGAR = [
   {
     ord:"ANSVAR", farg:"bg-red-800", icon:"🎯",
     beskr:"Vi tar ansvar för oss själva och för laget. Vi visar upp på träning, vi förbereder oss och vi levererar.",
-    citat:""Ditt nästa beslut är det viktigaste – ta det rätt."",
+    citat:"Ditt nästa beslut är det viktigaste – ta det rätt.",
     praktik:[
       "Meddela alltid om du inte kan komma till träning",
       "Ge alltid 100% – även när det är tungt",
@@ -897,7 +897,7 @@ const VARDERINGAR = [
   {
     ord:"GLÄDJE", farg:"bg-green-700", icon:"😄",
     beskr:"Vi spelar fotboll för att det är kul. Glädjen är grunden – utan den är inget annat möjligt.",
-    citat:""Fotboll är ett sätt att umgås – det ska vara kul att komma till träning."",
+    citat:"Fotboll är ett sätt att umgås – det ska vara kul att komma till träning.",
     praktik:[
       "Ha kul – det är det viktigaste av allt",
       "Skratta och skoja – men vet när det är dags att fokusera",
