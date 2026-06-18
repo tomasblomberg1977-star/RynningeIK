@@ -66,7 +66,7 @@ const saveF = (f) => lsSet("_favs", f);
 // ─── HELPERS ──────────────────────────────────────────────────────────
 const fmt       = (s)     => String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
 const tranKey   = (bId,nr)=> `${bId}-${nr}`;
-const TYPFARG   = { Uppvärmning:"bg-orange-100 text-orange-800",Teknik:"bg-blue-100 text-blue-800",Taktik:"bg-indigo-100 text-indigo-800",Spelövning:"bg-emerald-100 text-emerald-800",Matchspel:"bg-purple-100 text-purple-800",Avslut:"bg-slate-100 text-slate-600",Målvaktsträning:"bg-violet-100 text-violet-800" };
+const TYPFARG   = { Uppvärmning:"bg-orange-100 text-orange-800",Teknik:"bg-blue-100 text-blue-800",Taktik:"bg-indigo-100 text-indigo-800",Spelövning:"bg-emerald-100 text-emerald-800",Matchspel:"bg-purple-100 text-purple-800",Avslut:"bg-slate-100 text-slate-600",Målvaktsträning:"bg-violet-100 text-violet-800","Fysisk träning":"bg-teal-100 text-teal-800" };
 const DAGFARG   = { Måndag:"bg-blue-800",Onsdag:"bg-indigo-800",Torsdag:"bg-amber-700" };
 const BLOCKFARG = ["bg-green-700","bg-blue-700","bg-amber-600","bg-purple-700","bg-slate-600","bg-teal-700","bg-rose-700"];
 const MV_BLOCKFARG = "bg-violet-700";
@@ -113,7 +113,6 @@ const genBlock = (existingBlocks, selectedSkeden) => {
   // OVN_SVFF hand-curated exercises are excluded from block generation
   const pdfOvn = Object.values(OVN).filter(o => o.id.startsWith("ovningar"));
   const ovnPool = pdfOvn.filter(o => activeSkeden.includes(o.skede));
-  const mvPool  = pdfOvn.filter(o => o.skede === "MV"); // MV always available regardless of focus
   const byTyp = {
     forb: ovnPool.filter(o => o.typ === "Färdighetsövning" || o.typ === "Styrkeövning" || o.typ === "Fysisk övning"),
     spel: ovnPool.filter(o => o.typ === "Spelövning"),
@@ -201,24 +200,25 @@ const genBlock = (existingBlocks, selectedSkeden) => {
       delar.unshift({typ:"Uppvärmning",tid:12,namn:"Uppvärmning",beskr:"",blå:"",vit:"",rep:false});
     }
 
-    // Always insert a Målvaktsträning del right after Uppvärmning
-    if (!delar.find(d=>d.typ==="Målvaktsträning")) {
-      const usedMvIds = new Set(delar.filter(d=>d.ovnId).map(d=>d.ovnId));
-      const availMv = mvPool.filter(o => !usedMvIds.has(o.id));
-      if (availMv.length > 0) {
-        const mvOvn = availMv[Math.floor(Math.random() * Math.min(availMv.length, 8))];
-        const mvDel = {
-          typ: "Målvaktsträning",
-          tid: 15,
-          namn: mvOvn.namn,
-          ovnId: mvOvn.id,
+    // Always insert a Fysisk träning del right after Uppvärmning
+    if (!delar.find(d=>d.typ==="Fysisk träning")) {
+      const fysPool = Object.values(OVN).filter(o => o.id.startsWith("ovningar") && o.skede === "FYS");
+      const usedOvnIdsHere = new Set(delar.filter(d=>d.ovnId).map(d=>d.ovnId));
+      const availFys = fysPool.filter(o => !usedOvnIdsHere.has(o.id));
+      if (availFys.length > 0) {
+        const fysOvn = availFys[Math.floor(Math.random() * Math.min(availFys.length, 8))];
+        const fysDel = {
+          typ: "Fysisk träning",
+          tid: 12,
+          namn: fysOvn.namn,
+          ovnId: fysOvn.id,
           rep: false,
-          beskr: `${mvOvn.vad}. ${mvOvn.varfor}`,
-          blå: "Mv fokus på teknik – tränaren ger individuell feedback.",
-          vit: "Utespelarna håller passningsboll eller individuell teknik.",
+          beskr: `${fysOvn.vad}. ${fysOvn.varfor}`,
+          blå: "Fokus på rätt teknik – kvalitet före kvantitet.",
+          vit: "Högt tempo – utmana dig själv.",
         };
         const uppIdx = delar.findIndex(d=>d.typ==="Uppvärmning");
-        delar.splice(uppIdx + 1, 0, mvDel);
+        delar.splice(uppIdx + 1, 0, fysDel);
       }
     }
 
@@ -1399,45 +1399,49 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
           const period=blockPeriod(block,appState);
 
           return(
-            <div key={block.id} className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 overflow-hidden">
-              {/* Drag handle */}
-              <div
-                draggable
-                onDragStart={()=>setDragIdx(bi)}
+            <div key={block.id} className={`rounded-2xl shadow-sm overflow-hidden ${dragOverIdx===bi?"ring-2 ring-yellow-400":""}`}>
+              {/* Single full-width colored header row */}
+              <div className={`${bc} flex items-stretch`}
                 onDragOver={e=>{e.preventDefault();setDragOverIdx(bi);}}
                 onDrop={()=>{
                   if(dragIdx===null||dragIdx===bi) return;
-                  const lst = [...aktiveraBlocks];
-                  const [moved] = lst.splice(dragIdx,1);
+                  const lst=[...aktiveraBlocks];
+                  const [moved]=lst.splice(dragIdx,1);
                   lst.splice(bi,0,moved);
                   if(lagTyp==="mv") setMvBlocks(lst); else setBlocks(lst);
                   setDragIdx(null); setDragOverIdx(null);
                 }}
-                onDragEnd={()=>{setDragIdx(null);setDragOverIdx(null);}}
-                className={`${bc} px-2 py-3 flex items-center cursor-grab active:cursor-grabbing select-none ${dragOverIdx===bi?"ring-2 ring-yellow-400 ring-inset":""}`}
-                title="Dra för att byta ordning">
-                <span className="text-white/40 text-xs">⠿</span>
-              </div>
-              <button onClick={()=>setOpenBlock(isOpen?0:block.id)} className={`flex-1 ${bc} text-white px-4 py-3 flex items-center justify-between text-left hover:opacity-95 transition-opacity`}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-black text-base">{block.titel}</span>
-                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold">{period}</span>
-                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold">{block.vardeord}</span>
-                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded">{blokAvslutade}/{block.trän.length} klara</span>
+                onDragEnd={()=>{setDragIdx(null);setDragOverIdx(null);}}>
+                {/* Drag grip */}
+                <div draggable onDragStart={()=>setDragIdx(bi)}
+                  className="flex items-center px-2.5 cursor-grab active:cursor-grabbing select-none opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
+                  title="Dra för att byta ordning">
+                  <span className="text-white text-base leading-none">⠿</span>
                 </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {blocks.length > 1 && (
+                {/* Title + meta — clickable */}
+                <button onClick={()=>setOpenBlock(isOpen?0:block.id)}
+                  className="flex-1 text-white px-3 py-3 flex items-center gap-2 flex-wrap text-left hover:opacity-90 transition-opacity min-w-0">
+                  <span className="font-black text-base leading-tight">{block.titel}</span>
+                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold whitespace-nowrap">{period}</span>
+                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-semibold whitespace-nowrap">{block.vardeord}</span>
+                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded whitespace-nowrap">{blokAvslutade}/{block.trän.length} klara</span>
+                </button>
+                {/* Actions */}
+                <div className="flex items-center gap-1 px-2 flex-shrink-0">
+                  {aktiveraBlocks.length > 1 && (
                     <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){if(lagTyp==="mv"){setMvBlocks(prev=>prev.filter(b=>b.id!==block.id));}else{setBlocks(prev=>prev.filter(b=>b.id!==block.id));}}}}
-                      className="p-1 rounded-lg hover:bg-red-500/30 transition-colors opacity-70 hover:opacity-100" title="Ta bort block">
+                      className="p-1.5 rounded-lg hover:bg-red-500/40 transition-colors text-white/70 hover:text-white" title="Ta bort block">
                       <X className="h-4 w-4"/>
                     </button>
                   )}
-                  {isOpen?<ChevronUp className="h-5 w-5"/>:<ChevronDown className="h-5 w-5"/>}
+                  <button onClick={()=>setOpenBlock(isOpen?0:block.id)} className="p-1.5 text-white/80 hover:text-white transition-colors">
+                    {isOpen?<ChevronUp className="h-5 w-5"/>:<ChevronDown className="h-5 w-5"/>}
+                  </button>
                 </div>
-              </button>
+              </div>
 
               {isOpen&&(
-                <div className="p-3 space-y-2">
+                <div className="bg-white p-3 space-y-2 ring-1 ring-slate-200 rounded-b-2xl">
                   {synliga.length===0&&(
                     <div className="text-center text-slate-400 py-6 text-sm">Alla träningar avslutade. <button onClick={()=>setVisaAvslutade(true)} className="text-blue-600 font-bold underline">Visa avslutade</button></div>
                   )}
