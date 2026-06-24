@@ -1005,7 +1005,17 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
 
         {/* Main content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Part card */}
+          {(() => {
+            const ovn   = part.ovnId ? OVN[part.ovnId] : null;
+            const org   = ovn?.org || part.org || null;
+            const hur   = ovn?.hur?.length  ? ovn.hur  : (part.hur  || []);
+            const steg  = ovn?.steg?.length ? ovn.steg : (part.steg || []);
+            const prog  = ovn?.prog?.length ? ovn.prog : (part.prog || []);
+            const skiss = ovn?.skiss || part.skiss || null;
+            const vad   = ovn?.vad || null;
+            const varfor= ovn?.varfor || null;
+            const beskr = (!vad && !steg.length) ? (part.beskr || "") : "";
+            return (
           <div className="bg-slate-800 rounded-2xl p-4">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div className="flex-1 min-w-0">
@@ -1015,47 +1025,42 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
                   {part.ovnId&&<span className="text-xs bg-yellow-400/20 text-yellow-300 px-2 py-1 rounded-lg font-bold border border-yellow-400/30">SvFF {part.ovnId}</span>}
                   {part.rep&&<span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-1 rounded-lg font-bold border border-amber-500/30">REP</span>}
                 </div>
-                <h2 className="text-xl font-black text-white">{part.namn}</h2>
-                {part.beskr&&<p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{part.beskr}</p>}
-                {part.org&&<div className="mt-2 bg-white/10 rounded-lg px-3 py-2 text-xs text-slate-200"><span className="font-black text-yellow-400">Organisation: </span>{part.org}</div>}
-                {part.steg?.length>0&&(
-                  <div className="mt-2 bg-white/10 rounded-lg px-3 py-2">
-                    <div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Genomförande</div>
-                    <ol className="space-y-1">
-                      {part.steg.map((s,i)=>(
-                        <li key={i} className="flex gap-2 text-xs text-slate-200">
-                          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-900 text-[9px] font-black text-white">{i+1}</span>{s}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-                {part.skiss&&<Planskiss skiss={part.skiss}/>}
+                <div className="flex items-start justify-between gap-2">
+                  <h2 className="text-xl font-black text-white">{part.namn}</h2>
+                  {part.ovnId&&(
+                    <button onClick={()=>{const n=favs.includes(part.ovnId)?favs.filter(x=>x!==part.ovnId):[...favs,part.ovnId];onFavToggle(n);}}
+                      className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full border transition-colors ${favs.includes(part.ovnId)?"border-yellow-300 bg-yellow-400/20 text-yellow-400":"border-white/20 bg-white/10 text-white/50 hover:text-yellow-400"}`}
+                      title="Favoritmarkera"><Star className={`h-4 w-4 ${favs.includes(part.ovnId)?"fill-yellow-400":""}`}/></button>
+                  )}
+                </div>
+                {(vad||varfor)&&<div className="grid grid-cols-2 gap-2 mt-2">
+                  {vad&&<div className="bg-white/10 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-yellow-400 mb-1">Vad</div><p className="text-xs text-slate-200">{vad}</p></div>}
+                  {varfor&&<div className="bg-white/10 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-yellow-400 mb-1">Varför</div><p className="text-xs text-slate-200">{varfor}</p></div>}
+                </div>}
+                {beskr&&<p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{beskr}</p>}
+                {org&&<div className="mt-2 bg-white/10 rounded-lg px-3 py-2 text-xs text-slate-200"><span className="font-black text-yellow-400">Organisation: </span>{org}</div>}
+                {hur.length>0&&<div className="mt-2 bg-white/10 rounded-lg p-2.5"><div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Hur</div><ul className="space-y-1">{hur.map((h,i)=><li key={i} className="flex gap-1.5 text-xs text-slate-200"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul></div>}
+                {steg.length>0&&<div className="mt-2 bg-white/10 rounded-lg px-3 py-2"><div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Genomförande</div><ol className="space-y-1">{steg.map((s,i)=><li key={i} className="flex gap-2 text-xs text-slate-200"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-900 text-[9px] font-black text-white">{i+1}</span>{s}</li>)}</ol></div>}
+                {prog.length>0&&<div className="mt-2 bg-amber-900/30 rounded-lg p-2.5 ring-1 ring-amber-700/50"><div className="text-[10px] font-black text-amber-400 uppercase mb-1">Progression</div>{prog.map((p,i)=><div key={i} className="flex gap-1.5 text-xs text-amber-200 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}</div>}
+                {skiss&&<Planskiss skiss={skiss}/>}
               </div>
-              {/* Timer */}
               <div className="bg-blue-950 rounded-2xl p-4 min-w-[180px] border border-blue-800">
                 <div className="text-[10px] uppercase tracking-wider text-blue-300">Timer</div>
                 <div className="font-mono text-3xl font-black text-yellow-400 my-1">{fmt(secs)}</div>
                 <div className="flex gap-2">
-                  <button onClick={()=>setRun(v=>!v)} className="flex-1 flex items-center justify-center gap-1.5 bg-yellow-400 hover:bg-yellow-300 text-blue-950 rounded-xl py-2 text-sm font-black">
-                    {run?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{run?"Pausa":"Start"}
-                  </button>
-                  <button onClick={resetTimer} className="bg-slate-700 hover:bg-slate-600 text-white rounded-xl px-3 py-2 border border-slate-600" title="Starta om timer">
-                    <RotateCcw className="h-4 w-4"/>
-                  </button>
+                  <button onClick={()=>setRun(v=>!v)} className="flex-1 flex items-center justify-center gap-1.5 bg-yellow-400 hover:bg-yellow-300 text-blue-950 rounded-xl py-2 text-sm font-black">{run?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{run?"Pausa":"Start"}</button>
+                  <button onClick={resetTimer} className="bg-slate-700 hover:bg-slate-600 text-white rounded-xl px-3 py-2 border border-slate-600" title="Starta om timer"><RotateCcw className="h-4 w-4"/></button>
                 </div>
               </div>
             </div>
-
-            {/* Blå / Vit */}
-            {(part.blå||part.vit)&&(
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {part.blå&&<div className="bg-blue-900/50 border border-blue-700 rounded-xl p-3"><div className="text-[10px] font-black text-blue-300 uppercase tracking-wide mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-100">{part.blå}</p></div>}
-                {part.vit&&<div className="bg-slate-700/50 border border-slate-600 rounded-xl p-3"><div className="text-[10px] font-black text-slate-300 uppercase tracking-wide mb-1">⚪ Vit grupp</div><p className="text-xs text-slate-200">{part.vit}</p></div>}
-              </div>
-            )}
+            {(part.blå||part.vit)&&<div className="mt-3 grid grid-cols-2 gap-2">
+              {part.blå&&<div className="bg-blue-900/50 border border-blue-700 rounded-xl p-3"><div className="text-[10px] font-black text-blue-300 uppercase tracking-wide mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-100">{part.blå}</p></div>}
+              {part.vit&&<div className="bg-slate-700/50 border border-slate-600 rounded-xl p-3"><div className="text-[10px] font-black text-slate-300 uppercase tracking-wide mb-1">⚪ Vit grupp</div><p className="text-xs text-slate-200">{part.vit}</p></div>}
+            </div>}
             {part.ovnId&&<OvnKort id={part.ovnId} dark/>}
           </div>
+            );
+          })()}
 
           {/* Ledarbeteende */}
           <div className="grid grid-cols-2 gap-3">
