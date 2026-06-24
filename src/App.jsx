@@ -492,8 +492,111 @@ const OvnDiagram = ({id}) => {
 const SKEDEN_UTAN_PLAN = ['FYS'];
 const Planskiss = ({skiss, org, skede}) => {
   if (!skiss || SKEDEN_UTAN_PLAN.includes(skede)) return null;
-  if (!skiss.spelare?.length && !skiss.koner?.length) return null;
-  const { layout, dim, spelare=[], koner=[], pilar=[] } = skiss;
+  const spel = skiss.spel || skiss.spelare || [];
+  const koner = skiss.koner || [];
+  const pilar = skiss.pilar || [];
+  const zoner = skiss.zoner || [];
+  const etiketter = skiss.etiketter || [];
+  const dim = skiss.dim || '';
+  const harMal = skiss.mal !== false;
+  if (!spel.length && !koner.length) return null;
+
+  // Plan: x:15–85, y:5–95 of a 300×420 SVG
+  const W=300, H=420;
+  const px = pct => 15 + (pct/100)*(W-30);
+  const py = pct => 5  + (pct/100)*(H-10);
+  const R=11;
+  const goalW=52, goalH=13;
+  const midX = W/2;
+
+  const Sym = ({x,y,roll,label}) => {
+    const sx=px(x), sy=py(y);
+    const lbl = label && label.length > 0;
+    if (roll==='MV') return <g>
+      <circle cx={sx} cy={sy} r={R} fill="none" stroke="white" strokeWidth={2}/>
+      <text x={sx} y={sy+4} textAnchor="middle" fill="white" fontSize={7} fontWeight="700">MV</text>
+      {lbl&&<text x={sx} y={sy+R+9} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+    </g>;
+    if (roll==='O') return <g>
+      <circle cx={sx} cy={sy} r={R} fill="none" stroke="white" strokeWidth={2.2}/>
+      {lbl&&<text x={sx} y={sy+R+9} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+    </g>;
+    if (roll==='X') return <g>
+      <line x1={sx-R*.72} y1={sy-R*.72} x2={sx+R*.72} y2={sy+R*.72} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>
+      <line x1={sx+R*.72} y1={sy-R*.72} x2={sx-R*.72} y2={sy+R*.72} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>
+      {lbl&&<text x={sx} y={sy+R+9} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+    </g>;
+    if (roll==='S') return <g>
+      {[0,60,120,180,240,300].map(d=>{const r=d*Math.PI/180;return <line key={d} x1={sx} y1={sy} x2={sx+Math.cos(r)*R} y2={sy+Math.sin(r)*R} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>;}) }
+      {lbl&&<text x={sx} y={sy+R+9} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+    </g>;
+    // B = bollhållare ⊗
+    return <g>
+      <circle cx={sx} cy={sy} r={R} fill="none" stroke="white" strokeWidth={2.2}/>
+      <line x1={sx-R*.68} y1={sy-R*.68} x2={sx+R*.68} y2={sy+R*.68} stroke="white" strokeWidth={2} strokeLinecap="round"/>
+      <line x1={sx+R*.68} y1={sy-R*.68} x2={sx-R*.68} y2={sy+R*.68} stroke="white" strokeWidth={2} strokeLinecap="round"/>
+      {lbl&&<text x={sx} y={sy+R+9} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+    </g>;
+  };
+
+  return (
+    <div className="mt-3 rounded-xl overflow-hidden border border-slate-600">
+      <div className="bg-blue-950 px-3 py-1.5 text-[10px] font-black text-yellow-400 uppercase tracking-wider">
+        Planskiss{dim ? ` · ${dim}` : ''}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{background:'#4caf6e', maxHeight:360}}>
+        {/* Gräsränder */}
+        {[0,1,2,3,4,5,6].map(i=>(
+          <rect key={i} x={0} y={i*60} width={W} height={60} fill={i%2===0?"#45a363":"#4caf6e"}/>
+        ))}
+        {/* Plan ram */}
+        <rect x={15} y={5} width={W-30} height={H-10} fill="none" stroke="white" strokeWidth={1.5} strokeDasharray="8,5"/>
+        {/* Mål */}
+        {harMal&&<>
+          <rect x={midX-goalW/2} y={5-goalH} width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
+          <text x={midX} y={3} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
+          <rect x={midX-goalW/2} y={H-5} width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
+          <text x={midX} y={H+goalH} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
+        </>}
+        {/* Zonlinjer */}
+        {zoner.map((z,i)=>(
+          <line key={i} x1={15} y1={py(z)} x2={W-15} y2={py(z)} stroke="white" strokeWidth={1} strokeDasharray="5,4" opacity={0.7}/>
+        ))}
+        {/* Koner */}
+        {koner.map((k,i)=>(
+          <polygon key={i} points={`${px(k.x)},${py(k.y)-8} ${px(k.x)-6},${py(k.y)+4} ${px(k.x)+6},${py(k.y)+4}`} fill="#f97316"/>
+        ))}
+        {/* Pilar */}
+        <defs>
+          <marker id="pa" viewBox="0 0 10 10" refX="8" refY="5" markerWidth={5} markerHeight={5} orient="auto">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="white" strokeWidth={1.5} strokeLinecap="round"/>
+          </marker>
+        </defs>
+        {pilar.map((p,i)=>(
+          <line key={i} x1={px(p.x1)} y1={py(p.y1)} x2={px(p.x2)} y2={py(p.y2)}
+            stroke="white" strokeWidth={1.5} strokeDasharray={p.stipplad?"5,3":"none"}
+            markerEnd="url(#pa)" fill="none"/>
+        ))}
+        {/* Spelare */}
+        {spel.map((s,i)=><Sym key={i} {...s}/>)}
+        {/* Etiketter (t.ex. A/B/C) */}
+        {etiketter.map((e,i)=>(
+          <text key={i} x={px(e.x)} y={py(e.y)} fill="white" fontSize={11} fontWeight="700">{e.t}</text>
+        ))}
+      </svg>
+      {org&&<div className="bg-blue-950 px-3 py-2 text-[10px] text-slate-300 leading-relaxed">
+        <span className="text-yellow-400 font-black">Organisation: </span>{org}
+      </div>}
+      <div className="bg-slate-900 px-3 py-1.5 flex flex-wrap gap-3 text-[10px] text-slate-400">
+        <span><svg className="inline" width="12" height="12"><circle cx="6" cy="6" r="5" fill="none" stroke="white" strokeWidth="1.5"/></svg> O</span>
+        <span><svg className="inline" width="12" height="12"><line x1="2" y1="2" x2="10" y2="10" stroke="white" strokeWidth="1.8" strokeLinecap="round"/><line x1="10" y1="2" x2="2" y2="10" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg> X</span>
+        <span><svg className="inline" width="12" height="12"><circle cx="6" cy="6" r="5" fill="none" stroke="white" strokeWidth="1.5"/><line x1="3" y1="3" x2="9" y2="9" stroke="white" strokeWidth="1.5"/><line x1="9" y1="3" x2="3" y2="9" stroke="white" strokeWidth="1.5"/></svg> ⊗</span>
+        <span><svg className="inline" width="12" height="12">{[0,60,120,180,240,300].map(d=>{const r=d*Math.PI/180;return <line key={d} x1={6} y1={6} x2={6+Math.cos(r)*5} y2={6+Math.sin(r)*5} stroke="white" strokeWidth="1.5" strokeLinecap="round"/>;})}</svg> ✱</span>
+        <span><svg className="inline" width="12" height="12"><polygon points="6,1 1,11 11,11" fill="#f97316"/></svg> Kon</span>
+      </div>
+    </div>
+  );
+};
 
   // Plan fills most of the canvas with margin for labels
   const PX = 60, PW = 380, PY = 30, PH = 320;
@@ -604,44 +707,7 @@ const Planskiss = ({skiss, org, skede}) => {
           <span className="text-yellow-400 font-black">Organisation: </span>{org}
         </div>
       )}
-      {/* Legend */}
-      <div className="bg-slate-900 px-3 py-1.5 flex flex-wrap gap-3 text-[10px] text-slate-400">
-        <span className="flex items-center gap-1">
-          <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="white" strokeWidth="1.5"/></svg>
-          Anfallare (O)
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="14" height="14">
-            <line x1="2" y1="2" x2="12" y2="12" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-            <line x1="12" y1="2" x2="2" y2="12" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Försvarare (X)
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="14" height="14">
-            <circle cx="7" cy="7" r="6" fill="none" stroke="white" strokeWidth="1.5"/>
-            <line x1="3" y1="3" x2="11" y2="11" stroke="white" strokeWidth="1.5"/>
-            <line x1="11" y1="3" x2="3" y2="11" stroke="white" strokeWidth="1.5"/>
-          </svg>
-          Bollhållare (⊗)
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="14" height="14">
-            {[0,60,120,180,240,300].map(deg=>{
-              const rad=deg*Math.PI/180;
-              return <line key={deg} x1={7} y1={7} x2={7+Math.cos(rad)*6} y2={7+Math.sin(rad)*6} stroke="white" strokeWidth="1.5" strokeLinecap="round"/>;
-            })}
-          </svg>
-          Tredje lag (✱)
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="14" height="14"><polygon points="7,1 2,13 12,13" fill="#f97316"/></svg>
-          Kon
-        </span>
-      </div>
-    </div>
-  );
-};
+
 
 // ─── ÖVNING EXPANDERBAR ───────────────────────────────────────────────
 const OvnKort = ({id, dark=false, minimal=false}) => {
