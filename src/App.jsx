@@ -91,6 +91,201 @@ const blockPeriod = (block, appState) => {
   return dates.length === 1 ? fmt2(dates[0]) : `${fmt2(dates[0])} – ${fmt2(dates[dates.length-1])}`;
 };
 
+
+// ─── INBYGGDA ÖVNINGAR (ej SvFF) med rika instruktioner ──────────────
+const BUILTIN_OVN = {
+  "rondo_4_1": {
+    namn:"Rondopassning 4+1",
+    typ:"Uppvärmning",
+    tid:12,
+    vad:"Passning och spelbarhet under press i liten yta.",
+    varfor:"Aktiverar spelarna tekniskt och taktiskt. Tränar spelbarhet, kommunikation och rörelsemönster.",
+    org:"5 spelare per rondo (4 yttre + 1 i mitten). Yta: 8×8 m markerad med 4 koner. Bollar: 1 per grupp. Västar: mittspelaren har annan färg. Dela upp i grupper om 5.",
+    hur:[
+      "De 4 yttre spelarna håller bollen från mittspelaren.",
+      "Mittspelaren pressare – försöker ta boll eller tvinga felpassning.",
+      "Den som tappar boll eller gör felpassning byter plats med mittspelaren.",
+      "Max 2 touch för blå grupp, 1 touch för vit grupp.",
+      "Rörelse: alltid röra sig till ny position efter passning.",
+    ],
+    steg:[
+      "Sätt upp 4 koner i en kvadrat 8×8 m.",
+      "En spelare i mitten, en på varje kon.",
+      "Starta med bollen hos en yttre spelare.",
+      "Mittspelaren pressar – yttre håller bollen runt.",
+      "Öka tempo var 2:a minut.",
+    ],
+    prog:["Minska ytan till 6×6 m för vit grupp.","Lägg till andra mittspelaren (4+2)."],
+    skiss:{
+      typ:"rondo",
+      storlek:"8x8m",
+      spelare:[
+        {x:50,y:10,roll:"O",label:""},
+        {x:10,y:50,roll:"O",label:""},
+        {x:90,y:50,roll:"O",label:""},
+        {x:50,y:90,roll:"O",label:""},
+        {x:50,y:50,roll:"X",label:"Press"},
+      ],
+      koner:[{x:10,y:10},{x:90,y:10},{x:10,y:90},{x:90,y:90}],
+      mått:[{x1:10,y1:10,x2:90,y2:10,label:"8m"},{x1:10,y1:10,x2:10,y2:90,label:"8m"}],
+    },
+    blå:"Max 2 touch. Tränaren stopar och demonstrerar rätt stödposition. Trygg miljö.",
+    vit:"1 touch. Mittspelaren är aktiv och aggressiv. Poäng per erövrad boll.",
+  },
+  "lagcirkel": {
+    namn:"Lagcirkel + aktivering",
+    typ:"Uppvärmning",
+    tid:12,
+    vad:"Lagbyggande uppvärmning med bollkontakt och rörelseaktivering.",
+    varfor:"Skapar lagkänsla, aktiverar muskler och leder inför träningen. Alla spelare får tidig bollkontakt.",
+    org:"Hela laget i en cirkel, diameter ca 15 m. Bollar: 2–3 st. Inga västar. Tränare i mitten eller utanför.",
+    hur:[
+      "Spelarna ställer sig i cirkel med ca 3–4 m mellanrum.",
+      "2–3 bollar cirkulerar samtidigt – passa och röra sig.",
+      "Lägg gradvis till aktiveringsrörelser: hög knälyft, spark bak, sidosteg.",
+      "Sista 4 minuterna: 1-touch-passning i högt tempo runt cirkeln.",
+    ],
+    steg:[
+      "Cirkel med hela truppen, 15 m diameter.",
+      "3 min: fri bollcirkulation – vem som helst passar till vem som helst.",
+      "3 min: FIFA 11+ löpteknik längs sidlinjen (hög knälyft, spark bak, sidolöpning).",
+      "3 min: passningscirkel med rörelse – passa och spring in i cirkelns mitt och ut igen.",
+      "3 min: 1-touch snabb passning i ring.",
+    ],
+    prog:["Lägg till: mottag med vänster, passa med höger (eller tvärtom)."],
+    skiss:{
+      typ:"cirkel",
+      storlek:"Ø15m",
+      spelare:[
+        {x:50,y:5,roll:"O",label:""},{x:85,y:20,roll:"O",label:""},{x:95,y:55,roll:"O",label:""},
+        {x:80,y:85,roll:"O",label:""},{x:50,y:95,roll:"O",label:""},{x:20,y:85,roll:"O",label:""},
+        {x:5,y:55,roll:"O",label:""},{x:15,y:20,roll:"O",label:""},
+      ],
+      pilar:[{x1:50,y1:5,x2:85,y2:20},{x1:85,y1:20,x2:95,y2:55},{x1:5,y1:55,x2:15,y2:20}],
+      mått:[{x1:5,y1:50,x2:95,y2:50,label:"15m"}],
+    },
+    blå:"Tränaren leder och namnger varje rörelse högt. Fokus på rätt teknik i löpmönster.",
+    vit:"En spelare leder hela uppvärmningen. Tränaren observerar och ger feedback efteråt.",
+  },
+  "matchuppvarmning": {
+    namn:"Matchuppvärmning standard",
+    typ:"Uppvärmning",
+    tid:12,
+    vad:"Strukturerad matchuppvärmning som förbereder kropp och mind inför träning och match.",
+    varfor:"Höjer puls och kroppstemperatur gradvis, aktiverar muskler och skapar fokus inför matchlikt arbete.",
+    org:"Hela laget. Yta: halv plan eller 40×30 m. Bollar: 1 per spelare. Inga västar.",
+    hur:[
+      "2 min: joggning i lugnt tempo runt ytan, fri riktning.",
+      "3 min: passningsvärm i par med 10–12 m avstånd – insida, utsida, volley.",
+      "2 min: dynamisk stretching (benpendel, höftrotation, utfallssteg med rotation).",
+      "3 min: 3 sprint à 20 m med aktiv återgång – öka fart per sprint.",
+      "2 min: fri bollkontakt par – avsluta med skott på mål.",
+    ],
+    steg:[
+      "Spelarna samlas vid mittlinjen med var sin boll.",
+      "Tränaren eller en spelare leder varje fas med tydlig signal.",
+      "Sprint-fas: 3 konor à 20 m. Sprint till kon, jogga tillbaka.",
+      "Avslut: skott mot mål – höger, vänster, huvud.",
+    ],
+    prog:["Lägg till 1v1-försvarshållning (sidvärtsläge) i stretching-fasen."],
+    skiss:{
+      typ:"linje",
+      storlek:"20m sprint",
+      spelare:[
+        {x:10,y:50,roll:"O",label:"Start"},{x:50,y:50,roll:"K",label:"20m"},{x:90,y:50,roll:"K",label:"40m"},
+      ],
+      pilar:[{x1:10,y1:50,x2:90,y2:50,stipplad:true}],
+      mått:[{x1:10,y1:65,x2:50,y2:65,label:"20m"},{x1:50,y1:65,x2:90,y2:65,label:"20m"}],
+    },
+    blå:"Tränaren leder varje fas med högt röst och tydliga signaler. Tempoökning är gradvis.",
+    vit:"En roterande spelare leder. Tränaren observerar och ger enskild feedback under skottfasen.",
+  },
+  "mv_uppvarmning": {
+    namn:"MV-uppvärmning + aktivering",
+    typ:"Uppvärmning",
+    tid:12,
+    vad:"Målvaktsspecifik uppvärmning med fokus på händer, koordination och explosivitet.",
+    varfor:"Förbereder målvakterna specifikt för MV-rörelsemönster: fall, hopp, sidledsförflyttning.",
+    org:"2–3 målvakter. Yta: straffområdet + 5 m. Bollar: 2–3 st. Koner: 6 st för slalom och markering.",
+    hur:[
+      "2 min: jogg runt straffområdet, handpendel och armrotation.",
+      "2 min: koordinationsslalom – MV springer sidledsförflyttning mellan koner (1 m mellanrum, 6 koner).",
+      "3 min: parvis kastövning – kasta och fånga på olika höjder (marknivå, brösthöjd, huvud).",
+      "3 min: explosiva hopp – enbenshopp lateralt 5 × per sida, sedan jämfota framåt-bakåt.",
+      "2 min: 1-touch rädda i mål – tränaren skjuter från kort håll, Mv räddar och reser sig snabbt.",
+    ],
+    steg:[
+      "6 koner i rad med 1 m mellanrum utanför straffområdet.",
+      "Mv springer sidledsförflyttning (inte korssteg) mellan konerna.",
+      "Kastövning i par: en kastar, en fångar – variera höjd.",
+      "Hopp-serie: 5 laterala enbenshopp per sida.",
+      "Avslut: snabba räddningar från 7 m.",
+    ],
+    prog:["Lägg till snabb resning efter varje räddning (simulera matchsituation)."],
+    skiss:{
+      typ:"mv_koner",
+      storlek:"6×1m",
+      spelare:[{x:15,y:50,roll:"MV",label:"Start"}],
+      koner:[{x:25,y:50},{x:35,y:50},{x:45,y:50},{x:55,y:50},{x:65,y:50},{x:75,y:50}],
+      pilar:[{x1:15,y1:50,x2:75,y2:50,stipplad:false}],
+      mått:[{x1:25,y1:65,x2:75,y2:65,label:"5m (6 koner à 1m)"}],
+    },
+    blå:"Tränaren leder och demonstrerar rätt sidledsförflyttning (aldrig korssteg). Långsamt tempo.",
+    vit:"Eget tempo – MV pressar sig själv. Tränaren ger feedback på fotarbete och handhållning.",
+  },
+  "cirkeln_avslut": {
+    namn:"Cirkeln – vad tar vi med oss?",
+    typ:"Avslut",
+    tid:5,
+    vad:"Reflektion och lärande i grupp efter träning.",
+    varfor:"Befäster lärandet. Spelarna sätter ord på vad de tränat – det ökar förståelse och minnesinlagring.",
+    org:"Hela laget i en cirkel, stående. Tränaren i cirkeln. Ingen boll. 5 minuter.",
+    hur:[
+      "Alla ställer sig i cirkel – tränaren börjar.",
+      "Tränaren namnger dagens fokuspunkt (t.ex. 'spelbarhet i mittfältet').",
+      "Varje spelare säger ett ord eller en mening: 'Jag tar med mig att...'",
+      "Ingen kommenterar andras svar – bara lyssna.",
+      "Tränaren avslutar med koppling till värdeordet för blocket.",
+    ],
+    steg:[
+      "Samla laget direkt efter sista övningen – ingen paus.",
+      "Tränaren: 'Vad tränade vi idag? Vad tar du med dig?'",
+      "Gå runt cirkeln – alla svarar kort.",
+      "Koppla till värdeord: 'Det vi tränade idag handlar om ANSVAR/GEMENSKAP/...'",
+      "Avsluta med lagets hälsning eller klapp.",
+    ],
+    prog:[],
+    skiss:null,
+    blå:"Tränaren ger ett konkret exempel först för att sänka tröskeln. Lugnt och tryggt klimat.",
+    vit:"Spelarna leder cirkeln utan tränare. En spelare sammanfattar åt alla.",
+  },
+  "mv_reflektion": {
+    namn:"Reflektion – en lärdom",
+    typ:"Avslut",
+    tid:5,
+    vad:"Individuell och kollektiv reflektion för målvakter efter MV-träning.",
+    varfor:"Målvakter lär sig bäst när de reflekterar konkret kring ett tekniskt moment. Bygger medvetenhet.",
+    org:"2–3 målvakter + tränare. Sitter eller står. Ingen boll.",
+    hur:[
+      "Tränaren ställer en öppen fråga: 'Vad var svårast idag?'",
+      "Varje Mv svarar med ett konkret tekniskt moment (t.ex. 'tajmingen på utgången').",
+      "Tränaren bekräftar och kopplar till nästa träning.",
+      "Avsluta med en sak varje Mv ska öva på till nästa gång.",
+    ],
+    steg:[
+      "Samla Mv direkt efter sista övningen.",
+      "Fråga 1: 'Vad gick bra idag?'",
+      "Fråga 2: 'Vad var svårast?'",
+      "Tränaren: 'Till nästa gång fokuserar du på...' – en sak per Mv.",
+      "Kort avslutning – ge Mv känslan att de utvecklades idag.",
+    ],
+    prog:[],
+    skiss:null,
+    blå:"Tränaren ger specifik positiv feedback per Mv innan reflektionen börjar.",
+    vit:"Mv ger varandra feedback – tränaren lyssnar.",
+  },
+};
+
 // ─── GENERATE NEW BLOCK ───────────────────────────────────────────────
 // selectedSkeden: array of skeende keys e.g. ["ANF","FORS"]
 const genBlock = (existingBlocks, selectedSkeden) => {
@@ -131,101 +326,99 @@ const genBlock = (existingBlocks, selectedSkeden) => {
       .flatMap(s => ovnPool.filter(o => o.skede === s).flatMap(o => o.principer))
       .filter((v, j, a) => a.indexOf(v) === j).slice(0, 4);
 
-    // Build delar ensuring PREP + FÄRDIGHETSÖVNING + SPELÖVNING minimum
-    let delar = [];
-    let usedOvnIds = new Set();
+    // ── Bygg träningsdelar med strikt ordning ──────────────────────
+    // Ordning: Uppvärmning → Fysisk → 1-2 Färdighetsövningar → 1-2 Spelövningar → Avslut
+    // Färdighetsövningar: ALDRIG MV-övningar (skede=MV) i lagträning
+    // Spelövningar: kan inkludera MV-relaterade om de är spelövningar för hela laget
 
-    // Helper: pick next unused exercise
-    const pick = (pool, preferRep=false) => {
+    const usedIds = new Set();
+    const pickFrom = (pool, preferRep = false) => {
       if (preferRep && repCandidates.length > 0 && repCount < 2) {
-        const repId = repCandidates.find(id => !usedOvnIds.has(id) && pool.some(o=>o.id===id));
-        if (repId) { repCount++; usedOvnIds.add(repId); return {id:repId, rep:true}; }
+        const repId = repCandidates.find(id => !usedIds.has(id) && pool.some(o => o.id === id));
+        if (repId) { repCount++; usedIds.add(repId); return OVN[repId]; }
       }
-      const available = pool.filter(o => !usedOvnIds.has(o.id));
-      if (!available.length) return null;
-      const o = available[Math.floor(Math.random() * Math.min(available.length, 5))];
-      usedOvnIds.add(o.id);
-      return {id: o.id, rep: false};
+      const avail = pool.filter(o => !usedIds.has(o.id));
+      if (!avail.length) return null;
+      const o = avail[Math.floor(Math.random() * Math.min(avail.length, 6))];
+      usedIds.add(o.id);
+      return o;
     };
 
-    // Use mall delar as base, but ensure structure
-    const mallDelar = tm.delar || [];
-    let hasFardig = false, hasSpel = false;
+    // Pooler — färdighetsövningar EXKLUDERAR MV-övningar
+    const fysPool  = Object.values(OVN).filter(o => o.id.startsWith("ovningar") && o.skede === "FYS");
+    const fardPool = ovnPool.filter(o => o.typ === "Färdighetsövning" && o.skede !== "MV");
+    const spelPool = ovnPool.filter(o => o.typ === "Spelövning");
 
-    for (const d of mallDelar) {
-      if (d.ovnId) {
-        // Replace hand-curated IDs with PDF exercises from the pool
-        const isPdf = d.ovnId.startsWith("ovningar");
-        let ovnId = isPdf && OVN[d.ovnId] ? d.ovnId : null;
-        if (!ovnId) {
-          // Pick a PDF exercise of matching typ
-          const typPool = d.typ === "Spelövning" ? byTyp.spel : byTyp.forb.length ? byTyp.forb : byTyp.alla;
-          const p = pick(typPool);
-          ovnId = p?.id || null;
-        } else {
-          usedOvnIds.add(ovnId);
-        }
-        if (!ovnId) { delar.push({typ:d.typ,tid:d.tid,namn:d.namn||d.typ,beskr:d.beskr||"",blå:d.blå||"",vit:d.vit||"",rep:false}); continue; }
-        const oo = OVN[ovnId];
-        if (oo?.typ==="Färdighetsövning"||oo?.typ==="Styrkeövning") hasFardig=true;
-        if (oo?.typ==="Spelövning") hasSpel=true;
-        delar.push({typ:d.typ,tid:d.tid,namn:oo?oo.namn:d.typ,ovnId,rep:d.rep||false,beskr:oo?`${oo.vad}. ${oo.varfor}`:"",blå:d.blå||"",vit:d.vit||""});
-      } else {
-        delar.push({typ:d.typ,tid:d.tid,namn:d.namn||d.typ,beskr:d.beskr||"",blå:d.blå||"",vit:d.vit||"",rep:false});
-      }
-    }
+    // 1. Uppvärmning — hämta rik instruktion från BUILTIN_OVN
+    const uppvKey = i % 3 === 0 ? "rondo_4_1" : i % 3 === 1 ? "lagcirkel" : "matchuppvarmning";
+    const uppvBase = BUILTIN_OVN[uppvKey];
+    const uppvDel = {
+      typ:"Uppvärmning", tid:12,
+      namn:uppvBase.namn, beskr:uppvBase.vad,
+      hur:uppvBase.hur, steg:uppvBase.steg, org:uppvBase.org,
+      skiss:uppvBase.skiss, prog:uppvBase.prog,
+      blå:uppvBase.blå, vit:uppvBase.vit, rep:false
+    };
 
-    // Ensure minimum: 1 Färdighetsövning
-    if (!hasFardig && byTyp.forb.length > 0) {
-      const p = pick(byTyp.forb);
-      if (p) {
-        const o = OVN[p.id];
-        const idx = delar.findIndex(d=>d.typ==="Matchspel"||d.typ==="Avslut");
-        const del = {typ:"Teknik",tid:18,namn:o.namn,ovnId:p.id,rep:p.rep,beskr:`${o.vad}. ${o.varfor}`,blå:"",vit:""};
-        if (idx>=0) delar.splice(idx,0,del); else delar.push(del);
-      }
-    }
-    // Ensure minimum: 1 Spelövning
-    if (!hasSpel && byTyp.spel.length > 0) {
-      const p = pick(byTyp.spel);
-      if (p) {
-        const o = OVN[p.id];
-        const idx = delar.findIndex(d=>d.typ==="Matchspel"||d.typ==="Avslut");
-        const del = {typ:"Spelövning",tid:22,namn:o.namn,ovnId:p.id,rep:p.rep,beskr:`${o.vad}. ${o.varfor}`,blå:"",vit:""};
-        if (idx>=0) delar.splice(idx,0,del); else delar.push(del);
-      }
-    }
-    // Ensure Uppvärmning exists
-    if (!delar.find(d=>d.typ==="Uppvärmning")) {
-      delar.unshift({typ:"Uppvärmning",tid:12,namn:"Uppvärmning",beskr:"",blå:"",vit:"",rep:false});
-    }
+    // 2. Fysisk träning
+    const fysOvn = pickFrom(fysPool);
+    const fysDel = fysOvn ? {
+      typ:"Fysisk träning", tid:12,
+      namn:fysOvn.namn, ovnId:fysOvn.id, rep:false,
+      beskr:`${fysOvn.vad}. ${fysOvn.varfor}`,
+      blå:"Fokus på rätt teknik – kvalitet före kvantitet.",
+      vit:"Högt tempo – utmana dig själv.",
+    } : null;
 
-    // Always insert a Fysisk träning del right after Uppvärmning
-    if (!delar.find(d=>d.typ==="Fysisk träning")) {
-      const fysPool = Object.values(OVN).filter(o => o.id.startsWith("ovningar") && o.skede === "FYS");
-      const usedOvnIdsHere = new Set(delar.filter(d=>d.ovnId).map(d=>d.ovnId));
-      const availFys = fysPool.filter(o => !usedOvnIdsHere.has(o.id));
-      if (availFys.length > 0) {
-        const fysOvn = availFys[Math.floor(Math.random() * Math.min(availFys.length, 8))];
-        const fysDel = {
-          typ: "Fysisk träning",
-          tid: 12,
-          namn: fysOvn.namn,
-          ovnId: fysOvn.id,
-          rep: false,
-          beskr: `${fysOvn.vad}. ${fysOvn.varfor}`,
-          blå: "Fokus på rätt teknik – kvalitet före kvantitet.",
-          vit: "Högt tempo – utmana dig själv.",
-        };
-        const uppIdx = delar.findIndex(d=>d.typ==="Uppvärmning");
-        delar.splice(uppIdx + 1, 0, fysDel);
-      }
-    }
+    // 3. Färdighetsövningar (1-2 st, ej MV)
+    const fard1Ovn = pickFrom(fardPool, i >= 3); // REP i vecka 2
+    const fard1Del = fard1Ovn ? {
+      typ:"Färdighetsövning", tid:20,
+      namn:fard1Ovn.namn, ovnId:fard1Ovn.id, rep: repCandidates.includes(fard1Ovn.id),
+      beskr:`${fard1Ovn.vad}. ${fard1Ovn.varfor}`, blå:"", vit:"",
+    } : null;
 
-    // Ensure Avslut exists
-    if (!delar.find(d=>d.typ==="Avslut")) {
-      delar.push({typ:"Avslut",tid:5,namn:"Cirkeln – vad tog vi med oss?",beskr:"",blå:"",vit:"",rep:false});
-    }
+    const fard2Ovn = i % 2 === 0 ? pickFrom(fardPool, false) : null; // Varannan träning 2 färdighetsövningar
+    const fard2Del = fard2Ovn ? {
+      typ:"Färdighetsövning", tid:18,
+      namn:fard2Ovn.namn, ovnId:fard2Ovn.id, rep:false,
+      beskr:`${fard2Ovn.vad}. ${fard2Ovn.varfor}`, blå:"", vit:"",
+    } : null;
+
+    // 4. Spelövningar (1-2 st)
+    const spel1Ovn = pickFrom(spelPool, i >= 3);
+    const spel1Del = spel1Ovn ? {
+      typ:"Spelövning", tid:22,
+      namn:spel1Ovn.namn, ovnId:spel1Ovn.id, rep: repCandidates.includes(spel1Ovn.id),
+      beskr:`${spel1Ovn.vad}. ${spel1Ovn.varfor}`, blå:"", vit:"",
+    } : null;
+
+    const spel2Ovn = i % 2 === 1 ? pickFrom(spelPool, false) : null; // Varannan träning 2 spelövningar
+    const spel2Del = spel2Ovn ? {
+      typ:"Spelövning", tid:20,
+      namn:spel2Ovn.namn, ovnId:spel2Ovn.id, rep:false,
+      beskr:`${spel2Ovn.vad}. ${spel2Ovn.varfor}`, blå:"", vit:"",
+    } : null;
+
+    // 5. Avslut — rik instruktion
+    const avslutBase = BUILTIN_OVN["cirkeln_avslut"];
+    const avslutDel = {
+      typ:"Avslut", tid:5, namn:avslutBase.namn,
+      beskr:avslutBase.vad, hur:avslutBase.hur, steg:avslutBase.steg,
+      org:avslutBase.org, skiss:avslutBase.skiss,
+      blå:avslutBase.blå, vit:avslutBase.vit, rep:false
+    };
+
+    // Sätt ihop i rätt ordning
+    const delar = [
+      uppvDel,
+      ...(fysDel ? [fysDel] : []),
+      ...(fard1Del ? [fard1Del] : []),
+      ...(fard2Del ? [fard2Del] : []),
+      ...(spel1Del ? [spel1Del] : []),
+      ...(spel2Del ? [spel2Del] : []),
+      avslutDel,
+    ];
 
     return {
       dag: tm.dag, nr: i+1, vec: tm.vec||1,
@@ -268,6 +461,93 @@ const HomeBtn = ({onClick}) => (
     <Home className="h-4 w-4"/>Hem
   </button>
 );
+
+
+// ─── PLANSKISS KOMPONENT ──────────────────────────────────────────────
+const Planskiss = ({skiss}) => {
+  if (!skiss) return null;
+  const W = 300, H = 200;
+  const cx = v => (v / 100) * W;
+  const cy = v => (v / 100) * H;
+
+  return (
+    <div className="mt-3 rounded-xl overflow-hidden border border-blue-200 bg-slate-800">
+      <div className="px-3 py-1.5 bg-blue-950 text-[10px] font-black text-yellow-400 uppercase tracking-wider">
+        Planskiss · {skiss.storlek}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{maxHeight:220}}>
+        {/* Bakgrund */}
+        <rect width={W} height={H} fill="#1e293b"/>
+        {/* Gräslinjer */}
+        {[0,1,2,3,4].map(i=>(
+          <rect key={i} x={0} y={i*(H/5)} width={W} height={H/5}
+            fill={i%2===0?"#166534":"#15803d"} opacity={0.4}/>
+        ))}
+        {/* Mätlinjer */}
+        {(skiss.mått||[]).map((m,i)=>(
+          <g key={i}>
+            <line x1={cx(m.x1)} y1={cy(m.y1)+15} x2={cx(m.x2)} y2={cy(m.y2)+15}
+              stroke="#facc15" strokeWidth={1} strokeDasharray="3,2"/>
+            <text x={(cx(m.x1)+cx(m.x2))/2} y={cy(m.y1)+28}
+              textAnchor="middle" fill="#facc15" fontSize={9} fontWeight="bold">{m.label}</text>
+          </g>
+        ))}
+        {/* Pilar */}
+        {(skiss.pilar||[]).map((p,i)=>(
+          <line key={i} x1={cx(p.x1)} y1={cy(p.y1)} x2={cx(p.x2)} y2={cy(p.y2)}
+            stroke="#60a5fa" strokeWidth={1.5}
+            strokeDasharray={p.stipplad?"5,3":"none"}
+            markerEnd="url(#arrow)"/>
+        ))}
+        {/* Koner */}
+        {(skiss.koner||[]).map((k,i)=>(
+          <polygon key={i}
+            points={`${cx(k.x)},${cy(k.y)-7} ${cx(k.x)-5},${cy(k.y)+3} ${cx(k.x)+5},${cy(k.y)+3}`}
+            fill="#f97316"/>
+        ))}
+        {/* Spelare */}
+        {(skiss.spelare||[]).map((s,i)=>{
+          const isMV = s.roll==="MV";
+          const isX  = s.roll==="X";
+          const isK  = s.roll==="K";
+          const col  = isMV?"#a78bfa":isX?"#f87171":isK?"#f97316":"#60a5fa";
+          return (
+            <g key={i}>
+              {isK ? (
+                <polygon points={`${cx(s.x)},${cy(s.y)-6} ${cx(s.x)-5},${cy(s.y)+4} ${cx(s.x)+5},${cy(s.y)+4}`}
+                  fill="#f97316"/>
+              ) : (
+                <circle cx={cx(s.x)} cy={cy(s.y)} r={isMV?9:8} fill={col} stroke="white" strokeWidth={1.5}/>
+              )}
+              <text x={cx(s.x)} y={cy(s.y)+4} textAnchor="middle"
+                fill="white" fontSize={isMV?7:8} fontWeight="bold">
+                {isMV?"MV":isX?"X":isK?"":s.roll}
+              </text>
+              {s.label&&(
+                <text x={cx(s.x)} y={cy(s.y)+18} textAnchor="middle"
+                  fill="#e2e8f0" fontSize={7}>{s.label}</text>
+              )}
+            </g>
+          );
+        })}
+        {/* Arrow marker */}
+        <defs>
+          <marker id="arrow" markerWidth={6} markerHeight={6} refX={5} refY={3} orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="#60a5fa"/>
+          </marker>
+        </defs>
+      </svg>
+      <div className="px-3 py-1.5 bg-slate-900 flex flex-wrap gap-3 text-[10px] text-slate-400">
+        <span><span className="inline-block w-3 h-3 rounded-full bg-blue-400 mr-1"/>Spelare (O)</span>
+        <span><span className="inline-block w-3 h-3 rounded-full bg-red-400 mr-1"/>Press (X)</span>
+        <span><span className="inline-block w-3 h-3 rounded-full bg-violet-400 mr-1"/>Målvakt</span>
+        <span className="text-orange-400">▲ Kon</span>
+        <span className="text-blue-400">→ Rörelse/Pass</span>
+        <span className="text-yellow-400">- - Mätlinje</span>
+      </div>
+    </div>
+  );
+};
 
 // ─── ÖVNINGSDIAGRAM ──────────────────────────────────────────────────
 const OvnDiagram = ({id}) => {
@@ -324,7 +604,7 @@ const OvnKort = ({id, dark=false}) => {
           </div>
           {o.prog?.length>0&&<div className="bg-amber-50 rounded-lg p-2 ring-1 ring-amber-200"><div className="text-[10px] font-black uppercase text-amber-800 mb-1">Progression</div>{o.prog.map((p,i)=><div key={i} className="flex gap-1 text-amber-900 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-600"/>{p}</div>)}</div>}
           {o.url && <a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-950 text-white rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-900">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a>}
-          <OvnDiagram id={id}/>
+          {o.skiss ? <Planskiss skiss={o.skiss}/> : <OvnDiagram id={id}/>}
         </div>
       )}
     </div>
@@ -710,6 +990,20 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
                 </div>
                 <h2 className="text-xl font-black text-white">{part.namn}</h2>
                 {part.beskr&&<p className="text-sm text-slate-300 mt-1.5 leading-relaxed">{part.beskr}</p>}
+                {part.org&&<div className="mt-2 bg-white/10 rounded-lg px-3 py-2 text-xs text-slate-200"><span className="font-black text-yellow-400">Organisation: </span>{part.org}</div>}
+                {part.steg?.length>0&&(
+                  <div className="mt-2 bg-white/10 rounded-lg px-3 py-2">
+                    <div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Genomförande</div>
+                    <ol className="space-y-1">
+                      {part.steg.map((s,i)=>(
+                        <li key={i} className="flex gap-2 text-xs text-slate-200">
+                          <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-900 text-[9px] font-black text-white">{i+1}</span>{s}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                {part.skiss&&<Planskiss skiss={part.skiss}/>}
               </div>
               {/* Timer */}
               <div className="bg-blue-950 rounded-2xl p-4 min-w-[180px] border border-blue-800">
@@ -873,38 +1167,67 @@ const genMVBlock = (existingMVBlocks) => {
   const nextId = Math.max(0, ...existingMVBlocks.map(b => b.id)) + 1;
   const mallIdx = (nextId - 1) % MV_BLOCK_NAMN.length;
   const blockNamn = MV_BLOCK_NAMN[mallIdx];
-  const pdfOvn = Object.values(OVN).filter(o => o.id.startsWith("ovningar") && o.skede === "MV");
+
+  // Only MV Färdighetsövningar — no Spelövning, no other skeden
+  const mvFardPool = Object.values(OVN).filter(o =>
+    o.id.startsWith("ovningar") &&
+    o.skede === "MV" &&
+    o.typ === "Färdighetsövning"
+  );
+
   const dagar = ["Måndag","Onsdag","Torsdag","Måndag","Onsdag","Torsdag"];
   const vec   = [1,1,1,2,2,2];
   const usedGlobally = new Set();
 
   const trän = dagar.map((dag, i) => {
     const usedHere = new Set();
-    const pickMV = () => {
-      const avail = pdfOvn.filter(o => !usedGlobally.has(o.id) && !usedHere.has(o.id));
-      const pool = avail.length ? avail : pdfOvn;
+    const pickMVFard = () => {
+      const avail = mvFardPool.filter(o => !usedGlobally.has(o.id) && !usedHere.has(o.id));
+      const pool = avail.length ? avail : mvFardPool.filter(o => !usedHere.has(o.id));
+      if (!pool.length) return null;
       const o = pool[Math.floor(Math.random() * Math.min(pool.length, 6))];
-      usedHere.add(o.id); usedGlobally.add(o.id); return o;
+      usedHere.add(o.id);
+      usedGlobally.add(o.id);
+      return o;
     };
-    const mvOvn = [pickMV(), pickMV(), pickMV()];
+
+    // 1-3 MV färdighetsövningar — varannan träning 2 st, var tredje 3 st
+    const antal = i % 3 === 2 ? 3 : i % 2 === 0 ? 2 : 1;
+    const mvOvningar = [];
+    for (let k = 0; k < antal; k++) {
+      const o = pickMVFard();
+      if (o) mvOvningar.push(o);
+    }
+
+    const fardDelar = mvOvningar.map((o, k) => ({
+      typ: "Färdighetsövning",
+      tid: k === 0 ? 20 : 18,
+      namn: o.namn,
+      ovnId: o.id,
+      rep: i >= 3 && k === 0, // REP för första övningen i vecka 2
+      beskr: `${o.vad}. ${o.varfor}`,
+      blå: "Tränaren ger individuell feedback per Mv.",
+      vit: k === 0 ? "Fokus på timing och teknik." : "",
+    }));
+
     const delar = [
-      {typ:"Uppvärmning",tid:12,namn:"MV-uppvärmning + aktivering",beskr:"FIFA 11+ för målvakter. Ledrörlighet, koordination, explosiva hopp.",blå:"",vit:"",rep:false},
-      {typ:"Målvaktsträning",tid:20,namn:mvOvn[0].namn,ovnId:mvOvn[0].id,rep:false,beskr:`${mvOvn[0].vad}. ${mvOvn[0].varfor}`,blå:"Mv fokus på teknik – tränaren ger individuell feedback.",vit:""},
-      {typ:"Målvaktsträning",tid:20,namn:mvOvn[1].namn,ovnId:mvOvn[1].id,rep:false,beskr:`${mvOvn[1].vad}. ${mvOvn[1].varfor}`,blå:"",vit:""},
-      {typ:"Målvaktsträning",tid:20,namn:mvOvn[2].namn,ovnId:mvOvn[2].id,rep:false,beskr:`${mvOvn[2].vad}. ${mvOvn[2].varfor}`,blå:"",vit:""},
-      {typ:"Matchspel",tid:15,namn:"Matchsimulering med Mv",beskr:"Utespelarna spelar small-sided. Mv agerar i riktiga situationer.",blå:"",vit:"",rep:false},
-      {typ:"Avslut",tid:5,namn:"Reflektion – en lärdom",beskr:"Varje Mv namnger en sak de vill ta med sig.",blå:"",vit:"",rep:false},
+      (() => { const b=BUILTIN_OVN["mv_uppvarmning"]; return {typ:"Uppvärmning",tid:12,namn:b.namn,beskr:b.vad,hur:b.hur,steg:b.steg,org:b.org,skiss:b.skiss,prog:b.prog,blå:b.blå,vit:b.vit,rep:false}; })(),
+      ...fardDelar,
+      (() => { const b=BUILTIN_OVN["mv_reflektion"]; return {typ:"Avslut",tid:5,namn:b.namn,beskr:b.vad,hur:b.hur,steg:b.steg,org:b.org,skiss:null,blå:b.blå,vit:b.vit,rep:false}; })(),
     ];
+
     return {
-      dag, nr:i+1, vec:vec[i], skeden:["MV"],
-      principer:[...new Set(mvOvn.flatMap(o=>o.principer||[]))].slice(0,4),
-      syfte:`MV-träning: ${[...new Set(mvOvn.map(o=>o.kategori))].join(", ")}`,
-      ledBlå:"Fokus på teknik och tajming. Ger individuell feedback per Mv.",
-      ledVit:"Dokumenterar observationer för spelarsamtal.",
+      dag, nr: i+1, vec: vec[i],
+      skeden: ["MV"],
+      principer: [...new Set(mvOvningar.flatMap(o => o.principer||[]))].slice(0, 4),
+      syfte: `MV färdighetsträning: ${[...new Set(mvOvningar.map(o => o.kategori))].join(", ")}`,
+      ledBlå: "Fokus på teknik och tajming. Ger individuell feedback per Mv.",
+      ledVit: "Dokumenterar observationer för spelarsamtal.",
       delar,
     };
   });
-  return { id:nextId, titel:blockNamn, period:"", pfarg:"mv", vardeord:"STOLTHET", trän, typ:"MV" };
+
+  return { id: nextId, titel: blockNamn, period: "", pfarg: "mv", vardeord: "STOLTHET", trän, typ: "MV" };
 };
 
 
