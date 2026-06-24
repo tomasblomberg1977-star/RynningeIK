@@ -464,6 +464,31 @@ const HomeBtn = ({onClick}) => (
 
 
 // ─── PLANSKISS KOMPONENT ──────────────────────────────────────────────
+// ─── ÖVNINGSDIAGRAM (PDF-bild från SvFF) ─────────────────────────────
+const OvnDiagram = ({id}) => {
+  const [loaded, setLoaded] = React.useState(false);
+  const [error,  setError]  = React.useState(false);
+  if (!id) return null;
+  const src = `/imgs/${id}.jpg`;
+  return (
+    <div className="mt-2 rounded-xl overflow-hidden border border-slate-600 bg-slate-800">
+      {!loaded && !error && (
+        <div className="h-24 flex items-center justify-center text-slate-500 text-xs">Laddar diagram…</div>
+      )}
+      {error && (
+        <div className="h-10 flex items-center justify-center text-slate-500 text-xs">Diagram ej tillgängligt</div>
+      )}
+      <img
+        src={src}
+        alt="SvFF taktikdiagram"
+        className={`w-full object-contain ${loaded ? 'block' : 'hidden'}`}
+        onLoad={()=>setLoaded(true)}
+        onError={()=>setError(true)}
+      />
+    </div>
+  );
+};
+
 const SKEDEN_UTAN_PLAN = ['FYS'];
 const Planskiss = ({skiss, org, skede}) => {
   if (!skiss || SKEDEN_UTAN_PLAN.includes(skede)) return null;
