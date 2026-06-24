@@ -577,6 +577,7 @@ const OvnDiagram = ({id}) => {
 // ─── ÖVNING EXPANDERBAR ───────────────────────────────────────────────
 const OvnKort = ({id, dark=false}) => {
   const [open, setOpen] = useState(false);
+  const [showSvff, setShowSvff] = useState(false);
   const o = OVN[id]; if (!o) return null;
   const sk = SKEDEN[o.skede];
   const bg = dark ? "bg-blue-950 hover:bg-blue-900" : "bg-blue-900 hover:bg-blue-800";
@@ -591,25 +592,51 @@ const OvnKort = ({id, dark=false}) => {
         <span className="text-yellow-300 text-xs font-bold ml-2 flex-shrink-0">{open?"▲ Dölj":"▼ Visa"}</span>
       </button>
       {open&&(
-        <div className="bg-blue-50 p-3 space-y-2 text-xs">
-          <div className="flex flex-wrap gap-1">{o.principer.map(p=><span key={p} className="bg-white border border-blue-200 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded">{p}</span>)}</div>
+        <div className={`${dark?"bg-slate-900":"bg-slate-800"} p-3 space-y-3 text-xs`}>
+          <div className="flex flex-wrap gap-1">
+            {o.principer.map(p=><span key={p} className="bg-blue-900 border border-blue-700 text-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded">{p}</span>)}
+          </div>
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-white rounded-lg p-2 ring-1 ring-blue-100"><div className="text-[10px] font-black uppercase text-slate-500">Vad</div><div className="mt-0.5 text-slate-700">{o.vad}</div></div>
-            <div className="bg-white rounded-lg p-2 ring-1 ring-blue-100"><div className="text-[10px] font-black uppercase text-slate-500">Varför</div><div className="mt-0.5 text-slate-700">{o.varfor}</div></div>
+            <div className="bg-slate-700 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-yellow-400 mb-1">Vad</div><div className="text-slate-200">{o.vad}</div></div>
+            <div className="bg-slate-700 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-yellow-400 mb-1">Varför</div><div className="text-slate-200">{o.varfor}</div></div>
           </div>
-          {o.org&&<div className="bg-white rounded-lg p-2 ring-1 ring-blue-100"><div className="text-[10px] font-black uppercase text-slate-500">Organisation</div><div className="mt-0.5 text-slate-700">{o.org}</div></div>}
+          {o.org&&<div className="bg-slate-700 rounded-lg px-3 py-2"><span className="text-yellow-400 font-black text-[10px] uppercase">Organisation: </span><span className="text-slate-200">{o.org}</span></div>}
           <div className="grid gap-2 sm:grid-cols-2">
-            {o.hur?.length>0&&<div className="bg-white rounded-lg p-2 ring-1 ring-blue-100"><div className="text-[10px] font-black uppercase text-slate-500 mb-1">Hur</div><ul className="space-y-1">{o.hur.map((h,i)=><li key={i} className="flex gap-1 text-slate-700"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-600"/>{h}</li>)}</ul></div>}
-            {o.steg?.length>0&&<div className="bg-white rounded-lg p-2 ring-1 ring-blue-100"><div className="text-[10px] font-black uppercase text-slate-500 mb-1">Steg</div><ol className="space-y-1">{o.steg.map((s,i)=><li key={i} className="flex gap-1.5 text-slate-700"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-950 text-[9px] font-black text-white">{i+1}</span>{s}</li>)}</ol></div>}
+            {o.hur?.length>0&&(
+              <div className="bg-slate-700 rounded-lg p-2.5">
+                <div className="text-[10px] font-black uppercase text-yellow-400 mb-1.5">Hur</div>
+                <ul className="space-y-1.5">{o.hur.map((h,i)=><li key={i} className="flex gap-1.5 text-slate-200"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul>
+              </div>
+            )}
+            {o.steg?.length>0&&(
+              <div className="bg-slate-700 rounded-lg p-2.5">
+                <div className="text-[10px] font-black uppercase text-yellow-400 mb-1.5">Genomförande</div>
+                <ol className="space-y-1.5">{o.steg.map((s,i)=><li key={i} className="flex gap-1.5 text-slate-200"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-800 text-[9px] font-black text-white">{i+1}</span>{s}</li>)}</ol>
+              </div>
+            )}
           </div>
-          {o.prog?.length>0&&<div className="bg-amber-50 rounded-lg p-2 ring-1 ring-amber-200"><div className="text-[10px] font-black uppercase text-amber-800 mb-1">Progression</div>{o.prog.map((p,i)=><div key={i} className="flex gap-1 text-amber-900 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-600"/>{p}</div>)}</div>}
-          {o.url && <a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-950 text-white rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-900">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a>}
+          {o.prog?.length>0&&(
+            <div className="bg-amber-900/30 rounded-lg p-2.5 ring-1 ring-amber-700/50">
+              <div className="text-[10px] font-black uppercase text-amber-400 mb-1">Progression</div>
+              {o.prog.map((p,i)=><div key={i} className="flex gap-1.5 text-amber-200 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}
+            </div>
+          )}
           {o.skiss ? <Planskiss skiss={o.skiss}/> : <OvnDiagram id={id}/>}
+          {o.url&&(
+            <div className="border border-slate-600 rounded-lg overflow-hidden">
+              <button onClick={e=>{e.stopPropagation();setShowSvff(v=>!v)}} className="w-full flex items-center justify-between px-3 py-2 bg-slate-700 hover:bg-slate-600 transition-colors text-left">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">SvFF originalinstruktion</span>
+                <span className="text-slate-500 text-xs">{showSvff?"▲ Dölj":"▼ Visa"}</span>
+              </button>
+              {showSvff&&<div className="p-3 bg-slate-800 space-y-2"><a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-900 text-white rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-800">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a><OvnDiagram id={id}/></div>}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // ÖVNINGSBANK VIEW
