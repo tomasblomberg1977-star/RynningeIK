@@ -464,40 +464,41 @@ const HomeBtn = ({onClick}) => (
 
 
 // ─── PLANSKISS KOMPONENT ──────────────────────────────────────────────
-const Planskiss = ({skiss, org}) => {
-  if (!skiss) return null;
+const SKEDEN_UTAN_PLAN = ['FYS'];
+const Planskiss = ({skiss, org, skede}) => {
+  if (!skiss || SKEDEN_UTAN_PLAN.includes(skede)) return null;
+  if (!skiss.spelare?.length && !skiss.koner?.length) return null;
   const { layout, dim, spelare=[], koner=[], pilar=[] } = skiss;
 
-  // SVG coordinate helpers — plan occupies x:120–380, y:30–370 in a 500×400 canvas
-  const PX = 120, PW = 260, PY = 30, PH = 340;
+  // Plan fills most of the canvas with margin for labels
+  const PX = 60, PW = 380, PY = 30, PH = 320;
   const cx = pct => PX + (pct/100)*PW;
   const cy = pct => PY + (pct/100)*PH;
 
-  const hasGoal = ['tva_mal','fullplan','kontring','ett_mal'].includes(layout);
-  const goalW = 50, goalH = 12;
+  const hasGoal = ['tva_mal','fullplan','kontring','ett_mal','stor'].includes(layout);
+  const goalW = 60, goalH = 14;
+  const R = 12;
 
-  // Render one player symbol at (px,py) in SVG coords
-  const R = 11;
   const Speler = ({x, y, roll, label}) => {
     const px = cx(x), py = cy(y);
     if (roll === 'MV') return (
       <g>
         <circle cx={px} cy={py} r={R} fill="none" stroke="white" strokeWidth={2}/>
         <text x={px} y={py+4} textAnchor="middle" fill="white" fontSize={8} fontWeight="700">MV</text>
-        {label&&<text x={px} y={py+R+10} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+        {label&&<text x={px} y={py+R+11} textAnchor="middle" fill="#ddd" fontSize={9}>{label}</text>}
       </g>
     );
     if (roll === 'O') return (
       <g>
         <circle cx={px} cy={py} r={R} fill="none" stroke="white" strokeWidth={2.2}/>
-        {label&&<text x={px} y={py+R+10} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+        {label&&<text x={px} y={py+R+11} textAnchor="middle" fill="#ddd" fontSize={9}>{label}</text>}
       </g>
     );
     if (roll === 'X') return (
       <g>
-        <line x1={px-R*0.7} y1={py-R*0.7} x2={px+R*0.7} y2={py+R*0.7} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>
-        <line x1={px+R*0.7} y1={py-R*0.7} x2={px-R*0.7} y2={py+R*0.7} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>
-        {label&&<text x={px} y={py+R+10} textAnchor="middle" fill="#ddd" fontSize={8}>{label}</text>}
+        <line x1={px-R*0.72} y1={py-R*0.72} x2={px+R*0.72} y2={py+R*0.72} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>
+        <line x1={px+R*0.72} y1={py-R*0.72} x2={px-R*0.72} y2={py+R*0.72} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>
+        {label&&<text x={px} y={py+R+11} textAnchor="middle" fill="#ddd" fontSize={9}>{label}</text>}
       </g>
     );
     if (roll === 'S') return (
@@ -506,14 +507,16 @@ const Planskiss = ({skiss, org}) => {
           const rad=deg*Math.PI/180;
           return <line key={deg} x1={px} y1={py} x2={px+Math.cos(rad)*R} y2={py+Math.sin(rad)*R} stroke="white" strokeWidth={2.2} strokeLinecap="round"/>;
         })}
+        {label&&<text x={px} y={py+R+11} textAnchor="middle" fill="#ddd" fontSize={9}>{label}</text>}
       </g>
     );
     // Bollhållare ⊗
     return (
       <g>
         <circle cx={px} cy={py} r={R} fill="none" stroke="white" strokeWidth={2.2}/>
-        <line x1={px-R*0.65} y1={py-R*0.65} x2={px+R*0.65} y2={py+R*0.65} stroke="white" strokeWidth={2} strokeLinecap="round"/>
-        <line x1={px+R*0.65} y1={py-R*0.65} x2={px-R*0.65} y2={py+R*0.65} stroke="white" strokeWidth={2} strokeLinecap="round"/>
+        <line x1={px-R*0.68} y1={py-R*0.68} x2={px+R*0.68} y2={py+R*0.68} stroke="white" strokeWidth={2} strokeLinecap="round"/>
+        <line x1={px+R*0.68} y1={py-R*0.68} x2={px-R*0.68} y2={py+R*0.68} stroke="white" strokeWidth={2} strokeLinecap="round"/>
+        {label&&<text x={px} y={py+R+11} textAnchor="middle" fill="#ddd" fontSize={9}>{label}</text>}
       </g>
     );
   };
@@ -523,40 +526,36 @@ const Planskiss = ({skiss, org}) => {
       <div className="bg-blue-950 px-3 py-1.5 text-[10px] font-black text-yellow-400 uppercase tracking-wider">
         Planskiss{dim ? ` · ${dim}` : ''}
       </div>
-      <svg viewBox="0 0 500 410" className="w-full" style={{maxHeight:300, background:'#4caf6e'}}>
+      <svg viewBox="0 0 500 390" className="w-full" style={{background:'#4caf6e'}}>
         {/* Gräsränder */}
         {[0,1,2,3,4,5].map(i=>(
-          <rect key={i} x={0} y={i*68} width={500} height={68} fill={i%2===0?"#45a363":"#4caf6e"}/>
+          <rect key={i} x={0} y={i*65} width={500} height={65} fill={i%2===0?"#45a363":"#4caf6e"}/>
         ))}
 
         {/* Planens ram */}
         <rect x={PX} y={PY} width={PW} height={PH} fill="none" stroke="white" strokeWidth={1.5} strokeDasharray="8,5"/>
 
         {/* Mål om relevant */}
-        {hasGoal && (
-          <>
-            <rect x={(PX+PW/2)-goalW/2} y={PY-goalH} width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
-            <rect x={(PX+PW/2)-goalW/2} y={PY+PH} width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
-            <text x={PX+PW/2} y={PY-2} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
-            <text x={PX+PW/2} y={PY+PH+goalH+8} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
-          </>
-        )}
+        {hasGoal && (<>
+          <rect x={PX+PW/2-goalW/2} y={PY-goalH} width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
+          <rect x={PX+PW/2-goalW/2} y={PY+PH}    width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
+          <text x={PX+PW/2} y={PY-2}            textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
+          <text x={PX+PW/2} y={PY+PH+goalH+9}  textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
+        </>)}
 
-        {/* Rondo: kvadrat -->*/}
-        {layout === 'rondo' && (
+        {/* Rondo-kvadrat */}
+        {layout==='rondo'&&(
           <rect x={cx(12)} y={cy(12)} width={cx(88)-cx(12)} height={cy(88)-cy(12)} fill="none" stroke="white" strokeWidth={1} strokeDasharray="5,4"/>
         )}
 
         {/* Mittlinje */}
-        {['tva_mal','fullplan','kontring','stor'].includes(layout) && (
+        {['tva_mal','fullplan','kontring','stor'].includes(layout)&&(
           <line x1={PX} y1={PY+PH/2} x2={PX+PW} y2={PY+PH/2} stroke="white" strokeWidth={0.8} strokeDasharray="4,4" opacity={0.5}/>
         )}
 
         {/* Koner */}
         {koner.map((k,i)=>(
-          <polygon key={i}
-            points={`${cx(k.x)},${cy(k.y)-7} ${cx(k.x)-5},${cy(k.y)+3} ${cx(k.x)+5},${cy(k.y)+3}`}
-            fill="#f97316"/>
+          <polygon key={i} points={`${cx(k.x)},${cy(k.y)-8} ${cx(k.x)-6},${cy(k.y)+4} ${cx(k.x)+6},${cy(k.y)+4}`} fill="#f97316"/>
         ))}
 
         {/* Pilar */}
@@ -638,7 +637,7 @@ const OvnKort = ({id, dark=false, minimal=false}) => {
       {open&&(
         <div className="p-3 bg-slate-800 space-y-2">
           {o.url&&<a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-900 text-white rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-800">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a>}
-          <Planskiss skiss={o.skiss} org={o.org}/>
+          <OvnDiagram id={id}/>
         </div>
       )}
     </div>
@@ -843,7 +842,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                   {selOvn.steg?.length>0&&<div className="bg-slate-50 rounded-xl p-3 ring-1 ring-slate-100"><div className="text-[10px] font-black uppercase text-slate-400 mb-2">Steg</div><ol className="space-y-1.5">{selOvn.steg.map((s,i)=><li key={i} className="flex gap-2 text-sm text-slate-700"><span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-950 text-[10px] font-black text-white">{i+1}</span>{s}</li>)}</ol></div>}
                 </div>
                 {selOvn.prog?.length>0&&<div className="bg-amber-50 rounded-xl p-3 ring-1 ring-amber-200"><div className="text-[10px] font-black uppercase text-amber-700 mb-2">Progression</div>{selOvn.prog.map((p,i)=><p key={i} className="text-sm text-amber-900 mt-1">• {p}</p>)}</div>}
-                <Planskiss skiss={selOvn.skiss} org={selOvn.org}/>
+                <Planskiss skiss={selOvn.skiss} org={selOvn.org} skede={selOvn.skede}/>
                 <div className="flex gap-2 flex-wrap">
                   {selOvn.url && <a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-950 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-blue-900">Öppna SvFF <ExternalLink className="h-4 w-4"/></a>}
                   {väljLabel&&<button onClick={()=>onVälj(selOvn.id)} className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-blue-950 rounded-xl px-4 py-2.5 text-sm font-black"><Check className="h-4 w-4"/>Välj denna övning</button>}
@@ -1106,7 +1105,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
                 {steg.length>0&&<div className="mt-2 bg-white/10 rounded-lg px-3 py-2"><div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Genomförande</div><ol className="space-y-1">{steg.map((s,i)=><li key={i} className="flex gap-2 text-xs text-slate-200"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-900 text-[9px] font-black text-white">{i+1}</span>{s}</li>)}</ol></div>}
                 {prog.length>0&&<div className="mt-2 bg-amber-900/30 rounded-lg p-2.5 ring-1 ring-amber-700/50"><div className="text-[10px] font-black text-amber-400 uppercase mb-1">Progression</div>{prog.map((p,i)=><div key={i} className="flex gap-1.5 text-xs text-amber-200 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}</div>}
                 {part.ovnId
-                  ? <Planskiss skiss={OVN[part.ovnId]?.skiss} org={OVN[part.ovnId]?.org}/>
+                  ? <Planskiss skiss={OVN[part.ovnId]?.skiss} org={OVN[part.ovnId]?.org} skede={OVN[part.ovnId]?.skede}/>
                   : skiss&&<Planskiss skiss={skiss} org={org}/>}
               </div>
               <div className="bg-blue-950 rounded-2xl p-4 min-w-[180px] border border-blue-800">
