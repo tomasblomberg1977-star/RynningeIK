@@ -575,12 +575,30 @@ const OvnDiagram = ({id}) => {
 };
 
 // ─── ÖVNING EXPANDERBAR ───────────────────────────────────────────────
-const OvnKort = ({id, dark=false}) => {
+const OvnKort = ({id, dark=false, minimal=false}) => {
   const [open, setOpen] = useState(false);
   const [showSvff, setShowSvff] = useState(false);
   const o = OVN[id]; if (!o) return null;
   const sk = SKEDEN[o.skede];
   const bg = dark ? "bg-blue-950 hover:bg-blue-900" : "bg-blue-900 hover:bg-blue-800";
+
+  // Minimal mode: used in CoachMode where content is already shown above
+  // Just show the SvFF link/diagram as a collapsible
+  if (minimal) return (
+    <div className="mt-2 border border-slate-600 rounded-lg overflow-hidden">
+      <button onClick={()=>setOpen(v=>!v)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-700 hover:bg-slate-600 transition-colors text-left">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">SvFF originalinstruktion · {id}</span>
+        <span className="text-slate-500 text-xs">{open?"▲ Dölj":"▼ Visa"}</span>
+      </button>
+      {open&&(
+        <div className="p-3 bg-slate-800 space-y-2">
+          {o.url&&<a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-900 text-white rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-800">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a>}
+          <OvnDiagram id={id}/>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="mt-2 border border-blue-300/30 rounded-xl overflow-hidden">
       <button onClick={()=>setOpen(v=>!v)} className={`w-full flex items-center justify-between px-3 py-2.5 ${bg} text-left transition-colors`}>
@@ -1057,7 +1075,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               {part.blå&&<div className="bg-blue-900/50 border border-blue-700 rounded-xl p-3"><div className="text-[10px] font-black text-blue-300 uppercase tracking-wide mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-100">{part.blå}</p></div>}
               {part.vit&&<div className="bg-slate-700/50 border border-slate-600 rounded-xl p-3"><div className="text-[10px] font-black text-slate-300 uppercase tracking-wide mb-1">⚪ Vit grupp</div><p className="text-xs text-slate-200">{part.vit}</p></div>}
             </div>}
-            {part.ovnId&&<OvnKort id={part.ovnId} dark/>}
+            {part.ovnId&&<OvnKort id={part.ovnId} dark minimal/>}
           </div>
             );
           })()}
