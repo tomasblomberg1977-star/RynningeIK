@@ -822,9 +822,24 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                   {selOvn.steg?.length>0&&<div className="bg-slate-50 rounded-xl p-3 ring-1 ring-slate-100"><div className="text-[10px] font-black uppercase text-slate-400 mb-2">Steg</div><ol className="space-y-1.5">{selOvn.steg.map((s,i)=><li key={i} className="flex gap-2 text-sm text-slate-700"><span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-950 text-[10px] font-black text-white">{i+1}</span>{s}</li>)}</ol></div>}
                 </div>
                 {selOvn.prog?.length>0&&<div className="bg-amber-50 rounded-xl p-3 ring-1 ring-amber-200"><div className="text-[10px] font-black uppercase text-amber-700 mb-2">Progression</div>{selOvn.prog.map((p,i)=><p key={i} className="text-sm text-amber-900 mt-1">• {p}</p>)}</div>}
-                <Planskiss skiss={selOvn.skiss} org={selOvn.org} skede={selOvn.skede}/>
+                {/* SVG om manuell skiss finns, annars PDF-bild */}
+                {selOvn.skiss?.spel?.length > 0
+                  ? <Planskiss skiss={selOvn.skiss} org={selOvn.org} skede={selOvn.skede}/>
+                  : <OvnDiagram id={selOvn.id}/>}
                 <div className="flex gap-2 flex-wrap">
-                  {selOvn.url && <a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-950 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-blue-900">Öppna SvFF <ExternalLink className="h-4 w-4"/></a>}
+                  {/* SvFF PDF-länk + bild bara om vi har egen SVG */}
+                  {selOvn.skiss?.spel?.length > 0 && selOvn.url && (
+                    <details className="w-full">
+                      <summary className="text-xs font-black text-slate-400 cursor-pointer hover:text-slate-600">SvFF originalinstruktion ▾</summary>
+                      <div className="mt-2 space-y-2">
+                        <a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-950 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-blue-900">Öppna SvFF <ExternalLink className="h-4 w-4"/></a>
+                        <OvnDiagram id={selOvn.id}/>
+                      </div>
+                    </details>
+                  )}
+                  {!(selOvn.skiss?.spel?.length > 0) && selOvn.url && (
+                    <a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-blue-950 text-white rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-blue-900">Öppna SvFF <ExternalLink className="h-4 w-4"/></a>
+                  )}
                   {väljLabel&&<button onClick={()=>onVälj(selOvn.id)} className="inline-flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-blue-950 rounded-xl px-4 py-2.5 text-sm font-black"><Check className="h-4 w-4"/>Välj denna övning</button>}
                 </div>
               </div>
@@ -1084,9 +1099,17 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
                 {hur.length>0&&<div className="mt-2 bg-white/10 rounded-lg p-2.5"><div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Hur</div><ul className="space-y-1">{hur.map((h,i)=><li key={i} className="flex gap-1.5 text-xs text-slate-200"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul></div>}
                 {steg.length>0&&<div className="mt-2 bg-white/10 rounded-lg px-3 py-2"><div className="text-[10px] font-black text-yellow-400 uppercase mb-1.5">Genomförande</div><ol className="space-y-1">{steg.map((s,i)=><li key={i} className="flex gap-2 text-xs text-slate-200"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-900 text-[9px] font-black text-white">{i+1}</span>{s}</li>)}</ol></div>}
                 {prog.length>0&&<div className="mt-2 bg-amber-900/30 rounded-lg p-2.5 ring-1 ring-amber-700/50"><div className="text-[10px] font-black text-amber-400 uppercase mb-1">Progression</div>{prog.map((p,i)=><div key={i} className="flex gap-1.5 text-xs text-amber-200 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}</div>}
-                {part.ovnId
-                  ? <Planskiss skiss={OVN[part.ovnId]?.skiss} org={OVN[part.ovnId]?.org} skede={OVN[part.ovnId]?.skede}/>
-                  : skiss&&<Planskiss skiss={skiss} org={org}/>}
+                {/* Planskiss / PDF-diagram:
+                    - Manuell SVG (skiss.spel finns) → visa SVG överst
+                    - Annars → visa PDF-bild överst, ingen dropdown
+                */}
+                {part.ovnId ? (()=>{
+                  const ovn = OVN[part.ovnId];
+                  const harSvg = ovn?.skiss?.spel?.length > 0;
+                  return harSvg
+                    ? <Planskiss skiss={ovn.skiss} org={ovn.org} skede={ovn.skede}/>
+                    : <OvnDiagram id={part.ovnId}/>;
+                })() : skiss&&<Planskiss skiss={skiss} org={org}/>}
               </div>
               <div className="bg-blue-950 rounded-2xl p-4 min-w-[180px] border border-blue-800">
                 <div className="text-[10px] uppercase tracking-wider text-blue-300">Timer</div>
@@ -1101,7 +1124,9 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               {part.blå&&<div className="bg-blue-900/50 border border-blue-700 rounded-xl p-3"><div className="text-[10px] font-black text-blue-300 uppercase tracking-wide mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-100">{part.blå}</p></div>}
               {part.vit&&<div className="bg-slate-700/50 border border-slate-600 rounded-xl p-3"><div className="text-[10px] font-black text-slate-300 uppercase tracking-wide mb-1">⚪ Vit grupp</div><p className="text-xs text-slate-200">{part.vit}</p></div>}
             </div>}
-            {part.ovnId&&<OvnKort id={part.ovnId} dark minimal/>}
+            {part.ovnId && OVN[part.ovnId]?.skiss?.spel?.length > 0 && (
+              <OvnKort id={part.ovnId} dark minimal/>
+            )}
           </div>
             );
           })()}
