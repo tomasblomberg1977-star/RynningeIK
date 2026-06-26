@@ -572,11 +572,25 @@ const Planskiss = ({skiss, org, skede}) => {
             <path d="M2 1L8 5L2 9" fill="none" stroke="white" strokeWidth={1.5} strokeLinecap="round"/>
           </marker>
         </defs>
-        {pilar.map((p,i)=>(
-          <line key={i} x1={px(p.x1)} y1={py(p.y1)} x2={px(p.x2)} y2={py(p.y2)}
+        {pilar.map((p,i)=>{
+          const x1=px(p.x1),y1=py(p.y1),x2=px(p.x2),y2=py(p.y2);
+          if (p.vagig) {
+            // Wavy line = dribbling. Build path with sine-wave perpendicular to direction
+            const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy);
+            const nx=-dy/len, ny=dx/len; // normal
+            const steps=8, amp=5;
+            let d=`M${x1},${y1}`;
+            for(let s=1;s<=steps;s++){
+              const t=s/steps;
+              const wave=amp*Math.sin(s*Math.PI)*(s%2===0?1:-1);
+              d+=` L${x1+dx*t+nx*wave},${y1+dy*t+ny*wave}`;
+            }
+            return <path key={i} d={d} fill="none" stroke="white" strokeWidth={1.5} strokeLinecap="round" markerEnd="url(#pa)"/>;
+          }
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
             stroke="white" strokeWidth={1.5} strokeDasharray={p.stipplad?"5,3":"none"}
-            markerEnd="url(#pa)" fill="none"/>
-        ))}
+            markerEnd="url(#pa)" fill="none"/>;
+        })}
         {/* Spelare */}
         {spel.map((s,i)=><Sym key={i} {...s}/>)}
         {/* Etiketter (t.ex. A/B/C) */}
