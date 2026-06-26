@@ -707,7 +707,16 @@ const Planskiss = ({skiss, org, skede}) => {
           <span className="text-yellow-400 font-black">Organisation: </span>{org}
         </div>
       )}
-
+      <div className="bg-slate-900 px-3 py-1.5 flex flex-wrap gap-3 text-[10px] text-slate-400">
+        <span><svg className="inline" width="12" height="12"><circle cx="6" cy="6" r="5" fill="none" stroke="white" strokeWidth="1.5"/></svg> O</span>
+        <span><svg className="inline" width="12" height="12"><line x1="2" y1="2" x2="10" y2="10" stroke="white" strokeWidth="1.8" strokeLinecap="round"/><line x1="10" y1="2" x2="2" y2="10" stroke="white" strokeWidth="1.8" strokeLinecap="round"/></svg> X</span>
+        <span><svg className="inline" width="12" height="12"><circle cx="6" cy="6" r="5" fill="none" stroke="white" strokeWidth="1.5"/><line x1="3" y1="3" x2="9" y2="9" stroke="white" strokeWidth="1.5"/><line x1="9" y1="3" x2="3" y2="9" stroke="white" strokeWidth="1.5"/></svg> ⊗</span>
+        <span><svg className="inline" width="12" height="12">{[0,60,120,180,240,300].map(d=>{const r=d*Math.PI/180;return <line key={d} x1={6} y1={6} x2={6+Math.cos(r)*5} y2={6+Math.sin(r)*5} stroke="white" strokeWidth="1.5" strokeLinecap="round"/>;})}</svg> ✱</span>
+        <span><svg className="inline" width="12" height="12"><polygon points="6,1 1,11 11,11" fill="#f97316"/></svg> Kon</span>
+      </div>
+    </div>
+  );
+};
 
 // ─── ÖVNING EXPANDERBAR ───────────────────────────────────────────────
 const OvnKort = ({id, dark=false, minimal=false}) => {
