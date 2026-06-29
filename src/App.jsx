@@ -1098,10 +1098,6 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
           {/* ── Övningsinnehåll — full bredd ── */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
             <h2 className="text-xl font-bold text-gray-900 leading-snug">{part.namn}</h2>
-            {/* Diagram överst — direkt under titeln */}
-            {part.ovnId
-              ? <OvnDiagram id={part.ovnId}/>
-              : skiss&&<Planskiss skiss={skiss} org={org}/>}
             {(vad||varfor)&&<div className="grid grid-cols-2 gap-2">
               {vad&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Vad</div><p className="text-xs text-gray-700 leading-relaxed">{vad}</p></div>}
               {varfor&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Varför</div><p className="text-xs text-gray-700 leading-relaxed">{varfor}</p></div>}
