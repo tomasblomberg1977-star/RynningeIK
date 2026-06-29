@@ -857,11 +857,10 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                     <h2 className="text-lg font-black text-slate-900">{selOvn.namn}</h2>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={()=>{ setShowEdit(v=>!v); setEditDraft(showEdit?null:{typ:selOvn.typ,skede:selOvn.skede,kategori:selOvn.kategori||"",principer:[...(selOvn.principer||[])]}); }}
+                    <button onClick={()=>{ setShowEdit(v=>!v); setEditDraft(showEdit?null:{namn:selOvn.namn,typ:selOvn.typ,skede:selOvn.skede,kategori:selOvn.kategori||"",principer:[...(selOvn.principer||[])]}); }}
                       className={`h-9 px-3 flex items-center gap-1.5 rounded-xl border text-xs font-bold transition-colors ${showEdit?"bg-amber-100 text-amber-800 border-amber-300":"bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-700"}`}>
                       <Edit3 className="h-3.5 w-3.5"/>Kategorisera
-                    </button>
-                    <button onClick={()=>toggleFav(selOvn.id)}
+                    </button>                    <button onClick={()=>toggleFav(selOvn.id)}
                       className={`h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-full border transition-colors ${favs.includes(selOvn.id)?"border-amber-300 bg-yellow-50 text-yellow-600":"border-gray-200 bg-white text-gray-600 hover:text-yellow-500"}`}>
                       <Star className={`h-4 w-4 ${favs.includes(selOvn.id)?"fill-yellow-400":""}`}/>
                     </button>
@@ -872,6 +871,12 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                 {showEdit&&editDraft&&(
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
                     <div className="text-xs font-bold text-amber-800 uppercase tracking-wide">Omkategorisera övning</div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Namn</label>
+                      <input value={editDraft.namn} onChange={e=>setEditDraft(d=>({...d,namn:e.target.value}))}
+                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-amber-400 font-medium"
+                        placeholder="Övningens namn…"/>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Typ</label>
