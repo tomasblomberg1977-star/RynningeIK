@@ -2200,18 +2200,39 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={onOvningsbank} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
-              <BookOpen className="h-3.5 w-3.5"/>Övningar
-            </button>
-            <button onClick={onVarderingar} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
-              <Star className="h-3.5 w-3.5"/>Värderingar
-            </button>
-            <button onClick={onArbetssatt} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
-              <span className="text-sm">🧩</span>Arbetssätt
-            </button>
-            <button onClick={onStatistik} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
-              <span className="text-sm">📊</span>Statistik
-            </button>
+            {/* Dropdown menu for secondary nav */}
+            {(()=>{
+              const [menuOpen, setMenuOpen] = React.useState(false);
+              React.useEffect(()=>{
+                if(!menuOpen) return;
+                const close = ()=>setMenuOpen(false);
+                document.addEventListener('click', close, {once:true});
+                return ()=>document.removeEventListener('click', close);
+              },[menuOpen]);
+              return (
+                <div className="relative">
+                  <button onClick={e=>{e.stopPropagation();setMenuOpen(v=>!v);}}
+                    className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
+                    ☰ Meny
+                  </button>
+                  {menuOpen&&(
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg py-1.5 z-50 min-w-[160px]">
+                      {[
+                        [onOvningsbank, <><BookOpen className="h-3.5 w-3.5"/>Övningar</>],
+                        [onVarderingar, <>⭐ Värderingar</>],
+                        [onArbetssatt,  <>🧩 Arbetssätt</>],
+                        [onStatistik,   <>📊 Statistik</>],
+                      ].map(([fn,label],i)=>(
+                        <button key={i} onClick={()=>{fn();setMenuOpen(false);}}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 text-left">
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <button onClick={()=>setVisaAvslutade(v=>!v)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors ${visaAvslutade?"bg-amber-500 text-white border-amber-500":"bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-100"}`}>
               <Eye className="h-3.5 w-3.5"/>{visaAvslutade?"Dölj avslutade":"Visa avslutade"}
             </button>
