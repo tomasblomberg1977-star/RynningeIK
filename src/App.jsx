@@ -1588,6 +1588,363 @@ const ARBETSSATT_SEKTIONER = [
   },
 ]
 
+// ═══════════════════════════════════════════════════════════════════════
+// STATISTIK VIEW
+// ═══════════════════════════════════════════════════════════════════════
+const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
+  const [tab, setTab] = useState("lag");   // "lag" | "spelare"
+  const [selSpelare, setSelSpelare] = useState(null);
+
+  // ── Compute stats from appState + blocks ────────────────────────────
+  const stats = useMemo(() => {
+    const allBlocks = [...(blocks||[]), ...(mvBlocks||[])];
+    const avslutade = [];
+
+    for (const block of allBlocks) {
+      for (const tran of (block.trän||[])) {
+        const ts = appState[`${block.id}-${tran.nr}`] || {};
+        if (!ts.avslutad) continue;
+        const narv = ts.narvaro || {};
+        const deltog = Object.entries(narv).filter(([,v])=>v?.status==="bla"||v?.status==="vit");
+        const bla = deltog.filter(([,v])=>v?.status==="bla").map(([id])=>id);
+        const vit = deltog.filter(([,v])=>v?.status==="vit").map(([id])=>id);
+
+        // Collect skeden from delar
+        const skeden = [...new Set(tran.delar.filter(d=>d.ovnId).map(d=>{
+          const o = getOvn(d.ovnId); return o?.skede;
+        }).filter(Boolean))];
+        const kategorier = [...new Set(tran.delar.filter(d=>d.ovnId).map(d=>{
+          const o = getOvn(d.ovnId); return o?.kategori;
+        }).filter(Boolean))];
+        const principer = [...new Set(tran.delar.filter(d=>d.ovnId).flatMap(d=>{
+          const o = getOvn(d.ovnId); return o?.principer||[];
+        }))];
+
+        avslutade.push({
+          block, tran, ts,
+          bla, vit, deltog: deltog.map(([id])=>id),
+          skeden, kategorier, principer,
+          datum: ts.avslutadDatum,
+        });
+      }
+    }
+
+    // ── Lag-stats ──────────────────────────────────────────────────────
+    const totalPass = avslutade.length;
+    const skedeCount = {};
+    const katCount = {};
+    const blaNarv = {}; // blocktyp → count
+    const vitNarv = {};
+
+    for (const a of avslutade) {
+      for (const s of a.skeden) skedeCount[s] = (skedeCount[s]||0)+1;
+      for (const k of a.kategorier) katCount[k] = (katCount[k]||0)+1;
+    }
+
+    // ── Spelare-stats ──────────────────────────────────────────────────
+    const spelareStats = {};
+    for (const sp of (trupp||[])) {
+      const passNarv = avslutade.filter(a=>a.deltog.includes(String(sp.id)));
+      const blaNarv  = avslutade.filter(a=>a.bla.includes(String(sp.id)));
+      const vitNarv  = avslutade.filter(a=>a.vit.includes(String(sp.id)));
+      const spSkeden = {};
+      const spKat = {};
+      const spPrinciper = {};
+      for (const a of passNarv) {
+        for (const s of a.skeden) spSkeden[s] = (spSkeden[s]||0)+1;
+        for (const k of a.kategorier) spKat[k] = (spKat[k]||0)+1;
+        for (const p of a.principer) spPrinciper[p] = (spPrinciper[p]||0)+1;
+      }
+      spelareStats[sp.id] = {
+        sp, passNarv: passNarv.length, blaNarv: blaNarv.length, vitNarv: vitNarv.length,
+        skeden: spSkeden, kategorier: spKat, principer: spPrinciper,
+        pct: totalPass > 0 ? Math.round(passNarv.length/totalPass*100) : 0,
+      };
+    }
+
+    return { totalPass, avslutade, skedeCount, katCount, spelareStats };
+  }, [blocks, mvBlocks, appState, trupp]);
+
+  // ── Rekommendation för spelare ──────────────────────────────────────
+  const getRekommendation = (st) => {
+    const allSkeden = Object.entries(st.skeden).sort((a,b)=>b[1]-a[1]);
+    const allKat = Object.entries(st.kategorier).sort((a,b)=>b[1]-a[1]);
+    const allPrinciper = Object.entries(st.principer).sort((a,b)=>b[1]-a[1]);
+
+    const bra = allPrinciper.slice(0,3).map(([p])=>p);
+    // Principer with low count relative to others
+    const medel = allPrinciper.slice(-2).map(([p])=>p).filter(p=>!bra.includes(p));
+    const saknas = Object.keys(SKEDEN).filter(s=>!st.skeden[s] && s!=="FYS" && s!=="PREP");
+
+    return { bra, medel, saknas, topKat: allKat.slice(0,2).map(([k])=>k) };
+  };
+
+  const SKEDENKEYS = Object.keys(SKEDEN);
+  const selSt = selSpelare ? stats.spelareStats[selSpelare] : null;
+  const rek = selSt ? getRekommendation(selSt) : null;
+
+  const Bar = ({val, max, color="bg-amber-400"}) => (
+    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className={`h-2 ${color} rounded-full transition-all`} style={{width:`${max>0?Math.round(val/max*100):0}%`}}/>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm px-4 py-3">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <HomeBtn onClick={onBack}/>
+            <span className="text-gray-400">·</span>
+            <span className="font-bold text-gray-900 text-sm">Statistik</span>
+          </div>
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            {[["lag","Lag"],["spelare","Spelare"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setTab(v)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${tab===v?"bg-white shadow-sm text-gray-900":"text-gray-500"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+
+        {/* ── LAG-STATISTIK ── */}
+        {tab==="lag"&&(<>
+          {/* Totalt */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              ["Genomförda träningar", stats.totalPass, "bg-amber-50 border-amber-200"],
+              ["Lagträningar", (blocks||[]).reduce((s,b)=>s+b.trän.filter(t=>appState[`${b.id}-${t.nr}`]?.avslutad).length,0), "bg-blue-50 border-blue-200"],
+              ["MV-träningar", (mvBlocks||[]).reduce((s,b)=>s+b.trän.filter(t=>appState[`${b.id}-${t.nr}`]?.avslutad).length,0), "bg-violet-50 border-violet-200"],
+            ].map(([l,v,cls])=>(
+              <div key={l} className={`${cls} border rounded-2xl p-4 text-center`}>
+                <div className="text-3xl font-black text-gray-900">{v}</div>
+                <div className="text-xs text-gray-500 mt-1 font-medium">{l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Per skeende */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Träningar per skeende</div>
+            <div className="space-y-3">
+              {SKEDENKEYS.map(k=>{
+                const sk=SKEDEN[k]; const v=stats.skedeCount[k]||0; const max=Math.max(...Object.values(stats.skedeCount),1);
+                return (
+                  <div key={k}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">{sk.icon} {sk.label}</span>
+                      <span className="text-sm font-bold text-gray-900">{v}</span>
+                    </div>
+                    <Bar val={v} max={max} color={k==="ANF"?"bg-green-500":k==="FORS"?"bg-blue-500":k==="OMANF"?"bg-amber-500":k==="OMFOR"?"bg-red-500":k==="MV"?"bg-violet-500":"bg-teal-500"}/>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Per kategori */}
+          {Object.keys(stats.katCount).length>0&&(
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Kategorifördelning</div>
+              <div className="space-y-2.5">
+                {Object.entries(stats.katCount).sort((a,b)=>b[1]-a[1]).map(([k,v])=>(
+                  <div key={k}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-700">{k}</span>
+                      <span className="text-xs font-bold text-gray-900">{v} pass</span>
+                    </div>
+                    <Bar val={v} max={Math.max(...Object.values(stats.katCount))} color="bg-amber-400"/>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Närvaro per träning */}
+          {stats.avslutade.length>0&&(
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Närvaro per träning</div>
+              <div className="space-y-2">
+                {stats.avslutade.slice().reverse().map((a,i)=>{
+                  const tot=(trupp||[]).length; const n=a.deltog.length;
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="text-[10px] text-gray-400 w-24 flex-shrink-0">{a.datum?new Date(a.datum).toLocaleDateString("sv-SE",{month:"short",day:"numeric"}):"–"}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs text-gray-600">{a.block.titel} T{a.tran.nr}</span>
+                          <span className="text-xs font-bold text-gray-900">{n}/{tot}</span>
+                        </div>
+                        <Bar val={n} max={tot} color={n/tot>0.75?"bg-green-500":n/tot>0.5?"bg-amber-400":"bg-red-400"}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {stats.totalPass===0&&(
+            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">
+              <div className="text-4xl mb-3">📊</div>
+              <div className="font-bold text-gray-600">Ingen statistik ännu</div>
+              <div className="text-sm mt-1">Genomför träningar i Coach Mode för att se statistik</div>
+            </div>
+          )}
+        </>)}
+
+        {/* ── SPELARSTATISTIK ── */}
+        {tab==="spelare"&&(<>
+          {!selSpelare&&(
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Välj spelare</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(trupp||[]).map(sp=>{
+                  const st=stats.spelareStats[sp.id];
+                  return (
+                    <button key={sp.id} onClick={()=>setSelSpelare(sp.id)}
+                      className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-amber-300 hover:bg-amber-50 text-left transition-colors">
+                      <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                        {sp.namn?.charAt(0)||"?"}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-gray-900 truncate">{sp.namn}</div>
+                        <div className="text-[10px] text-gray-500">{st?.passNarv||0}/{stats.totalPass} träningar · {st?.pct||0}%</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {selSpelare&&selSt&&rek&&(
+            <div className="space-y-4">
+              {/* Spelare header */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <button onClick={()=>setSelSpelare(null)} className="h-8 w-8 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-600">
+                      ←
+                    </button>
+                    <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-black text-lg">
+                      {selSt.sp.namn?.charAt(0)||"?"}
+                    </div>
+                    <div>
+                      <div className="font-black text-gray-900 text-lg">{selSt.sp.namn}</div>
+                      <div className="text-xs text-gray-500">{selSt.sp.pos||""}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-black text-amber-600">{selSt.pct}%</div>
+                    <div className="text-xs text-gray-500">närvaro</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    ["Träningar",selSt.passNarv],
+                    ["Blå grupp",selSt.blaNarv],
+                    ["Vit grupp",selSt.vitNarv],
+                  ].map(([l,v])=>(
+                    <div key={l} className="bg-gray-50 rounded-xl p-3 text-center">
+                      <div className="text-2xl font-black text-gray-900">{v}</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rekommendation */}
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <div className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-4">💬 Samtalsunderlag för tränare</div>
+                {rek.bra.length>0&&(
+                  <div className="mb-3">
+                    <div className="text-xs font-semibold text-green-700 mb-1.5">✅ Gör bra — ta upp i positiv feedback:</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {rek.bra.map(p=><span key={p} className="bg-green-100 text-green-800 border border-green-200 text-xs px-2.5 py-1 rounded-full font-medium">{p}</span>)}
+                    </div>
+                    {rek.topKat.length>0&&<div className="text-xs text-green-700 mt-2">Mest tränat: {rek.topKat.join(", ")}</div>}
+                  </div>
+                )}
+                {rek.medel.length>0&&(
+                  <div className="mb-3">
+                    <div className="text-xs font-semibold text-amber-800 mb-1.5">🎯 Kan utvecklas — sätt fokus på:</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {rek.medel.map(p=><span key={p} className="bg-amber-100 text-amber-800 border border-amber-300 text-xs px-2.5 py-1 rounded-full font-medium">{p}</span>)}
+                    </div>
+                  </div>
+                )}
+                {rek.saknas.length>0&&(
+                  <div>
+                    <div className="text-xs font-semibold text-red-700 mb-1.5">⚠️ Saknar träning i — {selSt.passNarv===0?"spelare inte sett":`${selSt.sp.namn} har missat pass med`}:</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {rek.saknas.map(s=><span key={s} className={`${SKEDEN[s]?.farg||"bg-gray-100"} ${SKEDEN[s]?.text||"text-gray-700"} text-xs px-2.5 py-1 rounded-full font-medium`}>{SKEDEN[s]?.icon} {SKEDEN[s]?.label}</span>)}
+                    </div>
+                  </div>
+                )}
+                {rek.bra.length===0&&rek.medel.length===0&&rek.saknas.length===0&&(
+                  <div className="text-sm text-amber-700">Spela in närvaro på genomförda träningar för att se rekommendationer.</div>
+                )}
+              </div>
+
+              {/* Per skeende */}
+              {Object.keys(selSt.skeden).length>0&&(
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Närvaro per skeende</div>
+                  <div className="space-y-3">
+                    {SKEDENKEYS.filter(k=>selSt.skeden[k]||stats.skedeCount[k]).map(k=>{
+                      const sk=SKEDEN[k]; const spV=selSt.skeden[k]||0; const totV=stats.skedeCount[k]||0;
+                      return (
+                        <div key={k}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium text-gray-700">{sk.icon} {sk.label}</span>
+                            <span className="text-xs text-gray-500">{spV}/{totV} pass</span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-2 bg-amber-400 rounded-full" style={{width:`${totV>0?Math.round(spV/totV*100):0}%`}}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Per kategori */}
+              {Object.keys(selSt.kategorier).length>0&&(
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Kategorifördelning</div>
+                  <div className="space-y-2.5">
+                    {Object.entries(selSt.kategorier).sort((a,b)=>b[1]-a[1]).map(([k,v])=>(
+                      <div key={k} className="flex items-center gap-3">
+                        <span className="text-xs text-gray-600 flex-1">{k}</span>
+                        <span className="text-xs font-bold text-gray-900 w-10 text-right">{v}</span>
+                        <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
+                          <div className="h-2 bg-amber-400 rounded-full" style={{width:`${Math.round(v/Math.max(...Object.values(selSt.kategorier))*100)}%`}}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selSt.passNarv===0&&(
+                <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400">
+                  <div className="text-3xl mb-2">🏃</div>
+                  <div className="font-semibold text-gray-600">{selSt.sp.namn} har inte registrerats på något träningspass ännu</div>
+                </div>
+              )}
+            </div>
+          )}
+        </>)}
+      </div>
+    </div>
+  );
+};
+
 const ArbetssattVy = ({onBack}) => {
   const [openSek, setOpenSek] = React.useState("filosofi");
 
@@ -1791,7 +2148,7 @@ const VarderingarVy = ({onBack}) => (
 // ═══════════════════════════════════════════════════════════════════════
 // PLANERINGS VY (startsidan)
 // ═══════════════════════════════════════════════════════════════════════
-const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks, kalevent=[]}) => {
+const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, onStatistik, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks, kalevent=[]}) => {
   const [openBlock, setOpenBlock] = useState(blocks[0]?.id||1);
   const [visaAvslutade, setVisaAvslutade] = useState(false);
   const [showGenModal, setShowGenModal] = useState(false);
@@ -1851,6 +2208,9 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
             </button>
             <button onClick={onArbetssatt} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
               <span className="text-sm">🧩</span>Arbetssätt
+            </button>
+            <button onClick={onStatistik} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
+              <span className="text-sm">📊</span>Statistik
             </button>
             <button onClick={()=>setVisaAvslutade(v=>!v)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors ${visaAvslutade?"bg-amber-500 text-white border-amber-500":"bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-100"}`}>
               <Eye className="h-3.5 w-3.5"/>{visaAvslutade?"Dölj avslutade":"Visa avslutade"}
@@ -2213,6 +2573,9 @@ export default function App() {
   if (view==="ovningar") return (
     <OvningsbankVy favs={favs} setFavs={f=>{setFavs(f);saveF(f);}} onBack={goHome} onVälj={null} väljLabel={null}/>
   );
+  if (view==="statistik") return (
+    <StatistikVy blocks={blocks} mvBlocks={mvBlocks} appState={appState} trupp={trupp} onBack={goHome}/>
+  );
   if (view==="varderingar") return (
     <VarderingarVy onBack={goHome}/>
   );
@@ -2289,6 +2652,7 @@ export default function App() {
       onRedigera={handleRedigera} onOvningsbank={()=>setView("ovningar")}
       onVarderingar={()=>setView("varderingar")}
       onArbetssatt={()=>setView("arbetssatt")}
+      onStatistik={()=>setView("statistik")}
       syncBadge={<SyncBadge/>}
       mvBlocks={mvBlocks}
       setMvBlocks={updateMvBlocks}
