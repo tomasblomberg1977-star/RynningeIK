@@ -67,7 +67,7 @@ const saveF = (f) => lsSet("_favs", f);
 const fmt       = (s)     => String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
 const tranKey   = (bId,nr)=> `${bId}-${nr}`;
 const TYPFARG   = { Uppvärmning:"bg-orange-100 text-orange-800",Teknik:"bg-blue-100 text-blue-800",Taktik:"bg-indigo-100 text-indigo-800",Spelövning:"bg-emerald-100 text-emerald-800",Matchspel:"bg-purple-100 text-purple-800",Avslut:"bg-gray-50 text-gray-600",Målvaktsträning:"bg-violet-100 text-violet-800","Fysisk träning":"bg-teal-100 text-teal-800" };
-const DAGFARG   = { Måndag:"bg-blue-100",Onsdag:"bg-indigo-800",Torsdag:"bg-amber-700" };
+const DAGFARG   = { Måndag:"bg-blue-100 text-blue-800",Onsdag:"bg-violet-100 text-violet-800",Torsdag:"bg-amber-100 text-amber-800" };
 const BLOCKFARG = ["bg-green-600","bg-blue-700","bg-amber-600","bg-purple-700","bg-gray-300","bg-teal-700","bg-rose-700"];
 const MV_BLOCKFARG = "bg-violet-100";
 
@@ -641,7 +641,7 @@ const OvnKort = ({id, dark=false, minimal=false}) => {
     <div className="mt-2 border border-blue-300/30 rounded-xl overflow-hidden">
       <button onClick={()=>setOpen(v=>!v)} className={`w-full flex items-center justify-between px-3 py-2.5 ${bg} text-left transition-colors`}>
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="bg-amber-400 text-blue-950 text-[10px] font-black px-1.5 py-0.5 rounded flex-shrink-0">SvFF {id}</span>
+          <span className="bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-200 flex-shrink-0">SvFF {id}</span>
           {sk&&<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${sk.farg} ${sk.text}`}>{sk.icon} {sk.label}</span>}
           <span className="text-xs font-bold text-gray-900 truncate">{o.namn}</span>
         </div>
@@ -735,7 +735,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-amber-600"/>
               <span className="text-gray-900 font-black text-sm">Övningsbanken</span>
-              <span className="text-xs bg-amber-400 text-blue-950 font-black px-2 py-0.5 rounded-full">{Object.keys(OVN).length} övningar</span>
+              <span className="text-xs bg-amber-100 text-amber-800 font-semibold px-2 py-0.5 rounded-full border border-amber-200">{Object.keys(OVN).length} övningar</span>
             </div>
           </div>
           {väljLabel&&<span className="text-xs text-amber-500 font-semibold">{väljLabel}</span>}
@@ -793,7 +793,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                   </div>
                   {act&&väljLabel&&(
                     <button onClick={e=>{e.stopPropagation();onVälj(o.id);}}
-                      className="mt-2 w-full bg-amber-400 hover:bg-amber-300 text-blue-950 font-black text-xs px-3 py-2 rounded-lg flex items-center justify-center gap-1.5">
+                      className="mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-3 py-2 rounded-lg flex items-center justify-center gap-1.5">
                       <Check className="h-3.5 w-3.5"/>Välj denna övning
                     </button>
                   )}
@@ -904,10 +904,10 @@ const RedigeraVy = ({block, tran, onSpara, onBack}) => {
             <span className="text-gray-500">·</span>
             <div>
               <div className="text-gray-900 font-black text-sm">Redigera träning</div>
-              <div className="text-blue-200 text-xs">{block.titel} · T{tran.nr} · {tran.dag}</div>
+              <div className="text-amber-600 text-xs font-medium">{block.titel} · T{tran.nr} · {tran.dag}</div>
             </div>
           </div>
-          <button onClick={()=>onSpara(delar)} className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-blue-950 px-4 py-2 rounded-xl text-sm font-black">
+          <button onClick={()=>onSpara(delar)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-black">
             <Check className="h-4 w-4"/>Spara
           </button>
         </div>
@@ -1027,7 +1027,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
           <img src={LOGO} alt="RIK" className="h-9 w-9 object-contain flex-shrink-0"/>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-amber-400 text-blue-950 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">{readOnly?"📋 VISA TRÄNING":"🎯 COACH MODE"}</span>
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-amber-200">{readOnly?"📋 VISA TRÄNING":"🎯 COACH MODE"}</span>
               <span className="text-[10px] text-blue-200 font-semibold">{block.titel}</span>
               <span className="text-[10px] text-amber-500 font-bold">{block.vardeord}</span>
             </div>
@@ -1087,57 +1087,54 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
             const varfor= ovn?.varfor || null;
             const beskr = (!vad && !steg.length) ? (part.beskr || "") : "";
             return (
-          <div className="bg-gray-100 rounded-2xl p-4">
-            <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <span className={`text-xs font-black px-2 py-1 rounded-lg border ${TYPFARG[part.typ]||"bg-gray-200 text-gray-900 border-gray-300"}`}>{part.typ}</span>
-                  <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-lg">{part.tid} min</span>
-                  {part.ovnId&&<span className="text-xs bg-amber-400/20 text-amber-500 px-2 py-1 rounded-lg font-bold border border-amber-400/30">SvFF {part.ovnId}</span>}
-                  {part.rep&&<span className="text-[10px] bg-amber-500/20 text-amber-600 px-2 py-1 rounded-lg font-bold border border-amber-500/30">REP</span>}
-                </div>
-                <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-xl font-black text-gray-900">{part.namn}</h2>
-                  {part.ovnId&&(
-                    <button onClick={()=>{const n=favs.includes(part.ovnId)?favs.filter(x=>x!==part.ovnId):[...favs,part.ovnId];onFavToggle(n);}}
-                      className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full border transition-colors ${favs.includes(part.ovnId)?"border-amber-300 bg-amber-400/20 text-amber-600":"border-gray-200 bg-gray-100 text-gray-900/50 hover:text-amber-600"}`}
-                      title="Favoritmarkera"><Star className={`h-4 w-4 ${favs.includes(part.ovnId)?"fill-yellow-400":""}`}/></button>
-                  )}
-                </div>
-                {(vad||varfor)&&<div className="grid grid-cols-2 gap-2 mt-2">
-                  {vad&&<div className="bg-gray-100 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-amber-600 mb-1">Vad</div><p className="text-xs text-gray-700">{vad}</p></div>}
-                  {varfor&&<div className="bg-gray-100 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-amber-600 mb-1">Varför</div><p className="text-xs text-gray-700">{varfor}</p></div>}
-                </div>}
-                {beskr&&<p className="text-sm text-gray-600 mt-1.5 leading-relaxed">{beskr}</p>}
-                {org&&<div className="mt-2 bg-gray-100 rounded-lg px-3 py-2 text-xs text-gray-700"><span className="font-black text-amber-600">Organisation: </span>{org}</div>}
-                {hur.length>0&&<div className="mt-2 bg-gray-100 rounded-lg p-2.5"><div className="text-[10px] font-black text-amber-600 uppercase mb-1.5">Hur</div><ul className="space-y-1">{hur.map((h,i)=><li key={i} className="flex gap-1.5 text-xs text-gray-700"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul></div>}
-                {steg.length>0&&<div className="mt-2 bg-gray-100 rounded-lg px-3 py-2"><div className="text-[10px] font-black text-amber-600 uppercase mb-1.5">Genomförande</div><ol className="space-y-1">{steg.map((s,i)=><li key={i} className="flex gap-2 text-xs text-gray-700"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-[9px] font-black text-gray-900">{i+1}</span>{s}</li>)}</ol></div>}
-                {prog.length>0&&<div className="mt-2 bg-amber-50 rounded-lg p-2.5 ring-1 ring-amber-200"><div className="text-[10px] font-black text-amber-600 uppercase mb-1">Progression</div>{prog.map((p,i)=><div key={i} className="flex gap-1.5 text-xs text-amber-700 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}</div>}
-                {/* Planskiss / PDF-diagram:
-                    - Manuell SVG (skiss.spel finns) → visa SVG överst
-                    - Annars → visa PDF-bild överst, ingen dropdown
-                */}
-                {part.ovnId ? (()=>{
-                  const ovn = OVN[part.ovnId];
-                  const harSvg = ovn?.skiss?.spel?.length > 0;
-                  return harSvg
-                    ? <Planskiss skiss={ovn.skiss} org={ovn.org} skede={ovn.skede}/>
-                    : <OvnDiagram id={part.ovnId}/>;
-                })() : skiss&&<Planskiss skiss={skiss} org={org}/>}
-              </div>
-              <div className="bg-white rounded-2xl p-4 min-w-[180px] border border-amber-200">
-                <div className="text-[10px] uppercase tracking-wider text-blue-700">Timer</div>
-                <div className="font-mono text-4xl font-black text-amber-700 my-1 tracking-tight">{fmt(secs)}</div>
-                <div className="flex gap-2">
-                  <button onClick={()=>setRun(v=>!v)} className="flex-1 flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-2 text-sm font-bold">{run?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{run?"Pausa":"Start"}</button>
-                  <button onClick={resetTimer} className="bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-xl px-3 py-2 border border-gray-300" title="Starta om timer"><RotateCcw className="h-4 w-4"/></button>
-                </div>
-              </div>
+          {/* ── Timer bar ── sticky, full width */}
+          <div className="sticky top-0 z-10 bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
+            <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+              <span className={`text-xs font-bold px-2 py-1 rounded-lg border ${TYPFARG[part.typ]||"bg-gray-100 text-gray-700 border-gray-200"}`}>{part.typ}</span>
+              <span className="text-xs text-gray-500 font-medium px-2 py-1">{part.tid} min</span>
+              {part.ovnId&&<span className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-lg border border-amber-200 font-medium">SvFF {part.ovnId}</span>}
+              {part.rep&&<span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-1 rounded-lg border border-amber-200 font-bold">REP</span>}
             </div>
-            {(part.blå||part.vit)&&<div className="mt-3 grid grid-cols-2 gap-2">
-              {part.blå&&<div className="bg-blue-50/50 border border-blue-200 rounded-xl p-3"><div className="text-[10px] font-black text-blue-700 uppercase tracking-wide mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-800">{part.blå}</p></div>}
-              {part.vit&&<div className="bg-gray-200/50 border border-gray-300 rounded-xl p-3"><div className="text-[10px] font-black text-gray-600 uppercase tracking-wide mb-1">⚪ Vit grupp</div><p className="text-xs text-gray-700">{part.vit}</p></div>}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="rik-timer text-2xl font-black text-amber-600 w-[68px] text-right tabular-nums">{fmt(secs)}</span>
+              <button onClick={()=>setRun(v=>!v)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 py-2 text-sm font-semibold min-w-[76px] justify-center">
+                {run?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{run?"Pausa":"Start"}
+              </button>
+              <button onClick={resetTimer} className="bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-xl p-2 border border-gray-200" title="Nollställ">
+                <RotateCcw className="h-4 w-4"/>
+              </button>
+              {part.ovnId&&(
+                <button onClick={()=>{const n=favs.includes(part.ovnId)?favs.filter(x=>x!==part.ovnId):[...favs,part.ovnId];onFavToggle(n);}}
+                  className={`h-9 w-9 flex items-center justify-center rounded-xl border transition-colors ${favs.includes(part.ovnId)?"border-amber-300 bg-amber-50 text-amber-500":"border-gray-200 bg-white text-gray-300 hover:text-amber-400"}`}>
+                  <Star className={`h-4 w-4 ${favs.includes(part.ovnId)?"fill-amber-400":""}`}/>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Övningsinnehåll — full bredd ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+            <h2 className="text-xl font-bold text-gray-900 leading-snug">{part.namn}</h2>
+            {(vad||varfor)&&<div className="grid grid-cols-2 gap-2">
+              {vad&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Vad</div><p className="text-xs text-gray-700 leading-relaxed">{vad}</p></div>}
+              {varfor&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Varför</div><p className="text-xs text-gray-700 leading-relaxed">{varfor}</p></div>}
             </div>}
+            {beskr&&<p className="text-sm text-gray-600 leading-relaxed">{beskr}</p>}
+            {org&&<div className="bg-amber-50 rounded-xl px-3 py-2 text-xs text-gray-700 border border-amber-100"><span className="font-semibold text-amber-700">Organisation: </span>{org}</div>}
+            {hur.length>0&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold text-amber-600 uppercase mb-2">Hur</div><ul className="space-y-1.5">{hur.map((h,i)=><li key={i} className="flex gap-2 text-xs text-gray-700"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul></div>}
+            {steg.length>0&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold text-amber-600 uppercase mb-2">Genomförande</div><ol className="space-y-1.5">{steg.map((s,i)=><li key={i} className="flex gap-2 text-xs text-gray-700"><span className="step-num">{i+1}</span>{s}</li>)}</ol></div>}
+            {prog.length>0&&<div className="bg-amber-50 rounded-xl p-3 border border-amber-100"><div className="text-[10px] font-semibold text-amber-600 uppercase mb-1.5">Progression</div>{prog.map((p,i)=><div key={i} className="flex gap-2 text-xs text-amber-700 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}</div>}
+            {(part.blå||part.vit)&&<div className="grid grid-cols-2 gap-2">
+              {part.blå&&<div className="bg-blue-50 border border-blue-100 rounded-xl p-3"><div className="text-[10px] font-semibold text-blue-700 uppercase mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-800 leading-relaxed">{part.blå}</p></div>}
+              {part.vit&&<div className="bg-gray-50 border border-gray-200 rounded-xl p-3"><div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">⚪ Vit grupp</div><p className="text-xs text-gray-700 leading-relaxed">{part.vit}</p></div>}
+            </div>}
+            {part.ovnId ? (()=>{
+              const ovn = OVN[part.ovnId];
+              const harSvg = ovn?.skiss?.spel?.length > 0;
+              return harSvg
+                ? <Planskiss skiss={ovn.skiss} org={ovn.org} skede={ovn.skede}/>
+                : <OvnDiagram id={part.ovnId}/>;
+            })() : skiss&&<Planskiss skiss={skiss} org={org}/>}
             {part.ovnId && OVN[part.ovnId]?.skiss?.spel?.length > 0 && (
               <OvnKort id={part.ovnId} dark minimal/>
             )}
@@ -1227,7 +1224,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
           <ChevronLeft className="h-4 w-4"/>Föreg.
         </button>
         <button onClick={()=>setDoneParts(p=>({...p,[partIdx]:!p[partIdx]}))}
-          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-black shadow transition-colors ${doneParts[partIdx]?"bg-emerald-600 hover:bg-emerald-500 text-gray-900":"bg-amber-400 hover:bg-amber-300 text-blue-950"}`}>
+          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-black shadow transition-colors ${doneParts[partIdx]?"bg-emerald-500 hover:bg-emerald-600 text-white":"bg-amber-500 hover:bg-amber-600 text-white"}`}>
           <CheckCircle2 className="h-4 w-4"/>{doneParts[partIdx]?"Klar ✓":"Markera klar"}
         </button>
         <button onClick={()=>setPartIdx(i=>Math.min(tran.delar.length-1,i+1))} disabled={partIdx===tran.delar.length-1}
@@ -1775,7 +1772,7 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
             <button onClick={onArbetssatt} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-3 py-2 rounded-xl transition-colors">
               <span className="text-sm">🧩</span>Arbetssätt
             </button>
-            <button onClick={()=>setVisaAvslutade(v=>!v)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors ${visaAvslutade?"bg-amber-400 text-blue-950 border-amber-400":"bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-100"}`}>
+            <button onClick={()=>setVisaAvslutade(v=>!v)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors ${visaAvslutade?"bg-amber-500 text-white border-amber-500":"bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-100"}`}>
               <Eye className="h-3.5 w-3.5"/>{visaAvslutade?"Dölj avslutade":"Visa avslutade"}
             </button>
             <button onClick={onRefreshTrupp} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-2.5 py-2 rounded-xl transition-colors" title="Uppdatera spelarlistan från laget.se">
@@ -1892,52 +1889,59 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                     const harNarv=blaAntal+vitAntal>0;
 
                     return(
-                      <div key={tran.nr} className={`border rounded-xl overflow-hidden transition-all ${avslutad?"border-emerald-200 bg-emerald-50 opacity-80":"border-gray-200 bg-white hover:border-blue-300"}`}>
-                        <div className="flex items-start justify-between gap-3 p-3 flex-wrap">
-                          <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <div className={`${DAGFARG[tran.dag]||"bg-gray-500"} text-gray-900 text-[10px] font-black px-2 py-1 rounded-lg flex-shrink-0 text-center leading-tight`}>
+                      <div key={tran.nr} className={`border rounded-xl overflow-hidden transition-all ${avslutad?"border-emerald-200 bg-emerald-50 opacity-80":"border-gray-200 bg-white hover:border-gray-300"}`}>
+                        {/* Top row: dag + badges + actions */}
+                        <div className="flex items-center justify-between gap-3 px-3 pt-3 pb-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                            <div className={`${DAGFARG[tran.dag]||"bg-gray-100 text-gray-700"} text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 text-center leading-tight`}>
                               <div>{tran.dag.slice(0,3).toUpperCase()}</div><div>V{tran.vec}</div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                {tran.skeden.map(s=><SkedeBadge key={s} id={s}/>)}
-                                {avslutad&&<span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">✓ Genomförd</span>}
-                              </div>
-                              <div className="text-sm font-bold text-slate-900 leading-snug">{tran.syfte.slice(0,80)}{tran.syfte.length>80?"…":""}</div>
-                              <div className="text-xs text-gray-500 mt-0.5">{tran.delar.reduce((s,d)=>s+d.tid,0)} min · {tran.delar.length} delar</div>
-                              <div className="flex flex-wrap gap-2 mt-1.5">
-                                {ev&&<span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1"><Calendar className="h-3 w-3"/>{ev.label}</span>}
-                                {harNarv&&<span className="text-[10px] text-gray-500 flex items-center gap-1">{blaAntal>0&&<span className="text-blue-600 font-bold">🔵{blaAntal}</span>}{vitAntal>0&&<span className="text-gray-500 font-bold ml-1">⚪{vitAntal}</span>}</span>}
-                              </div>
-                              {!avslutad&&(
-                                <div className="mt-2 flex items-center gap-2 flex-wrap">
-                                  <Calendar className="h-3.5 w-3.5 text-gray-500 flex-shrink-0"/>
-                                  <select value={ts.event||""} onChange={e=>setEvent(block.id,tran.nr,e.target.value)}
-                                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
-                                    <option value="">Koppla till laget.se-tillfälle…</option>
-                                    {KALEVENT.map(e=><option key={e.id} value={e.id}>{e.label} ({e.dag})</option>)}
-                                  </select>
-                                </div>
-                              )}
-                            </div>
+                            {tran.skeden.map(s=><SkedeBadge key={s} id={s}/>)}
+                            {avslutad&&<span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">✓ Genomförd</span>}
                           </div>
-                          <div className="flex gap-1.5 flex-shrink-0 flex-wrap">
+                          <div className="flex gap-1.5 flex-shrink-0">
                             {!avslutad&&(
-                              <button onClick={()=>onRedigera(block,tran)} className="flex items-center gap-1 bg-gray-50 hover:bg-slate-200 text-gray-700 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors">
+                              <button onClick={()=>onRedigera(block,tran)} className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors">
                                 <Edit3 className="h-3.5 w-3.5"/>Redigera
                               </button>
                             )}
                             {avslutad?(
-                              <button onClick={()=>onVisaAvslutad(block,tran)} className="flex items-center gap-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors">
+                              <button onClick={()=>onVisaAvslutad(block,tran)} className="flex items-center gap-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
                                 <Eye className="h-3.5 w-3.5"/>Visa
                               </button>
                             ):(
-                              <button onClick={()=>onStartCoach(block,tran)} className="flex items-center gap-1.5 bg-white hover:bg-blue-100 text-gray-900 px-3 py-2 rounded-xl text-xs font-black transition-colors shadow-sm">
+                              <button onClick={()=>onStartCoach(block,tran)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors">
                                 <Play className="h-3.5 w-3.5"/>Starta
                               </button>
                             )}
                           </div>
                         </div>
+                        {/* Syfte — full width */}
+                        <div className="px-3 pb-2">
+                          <p className="text-sm font-medium text-gray-900 leading-snug">{tran.syfte}</p>
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                            <span className="text-xs text-gray-400">{tran.delar.reduce((s,d)=>s+d.tid,0)} min · {tran.delar.length} delar</span>
+                            {ev&&<span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-medium flex items-center gap-1"><Calendar className="h-3 w-3"/>{ev.label}</span>}
+                            {harNarv&&<span className="text-[10px] text-gray-400 flex items-center gap-1">{blaAntal>0&&<span className="text-blue-500 font-semibold">🔵{blaAntal}</span>}{vitAntal>0&&<span className="text-gray-400 font-semibold ml-1">⚪{vitAntal}</span>}</span>}
+                          </div>
+                        </div>
+                        {/* Principer */}
+                        {tran.principer?.length>0&&(
+                          <div className="px-3 pb-2 flex flex-wrap gap-1.5">
+                            {tran.principer.map(p=><span key={p} className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full">{p}</span>)}
+                          </div>
+                        )}
+                        {/* Kalender */}
+                        {!avslutad&&(
+                          <div className="px-3 pb-3 flex items-center gap-2">
+                            <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0"/>
+                            <select value={ts.event||""} onChange={e=>setEvent(block.id,tran.nr,e.target.value)}
+                              className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-400 flex-1 min-w-0">
+                              <option value="">Koppla till laget.se-tillfälle…</option>
+                              {KALEVENT.map(e=><option key={e.id} value={e.id}>{e.label} ({e.dag})</option>)}
+                            </select>
+                          </div>
+                        )}
                         <div className="px-3 pb-2 flex flex-wrap gap-1">
                           {tran.principer.slice(0,4).map(p=><span key={p} className="text-[10px] bg-gray-50 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded font-medium">{p}</span>)}
                         </div>
