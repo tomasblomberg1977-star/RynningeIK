@@ -11,7 +11,90 @@ import { OVN_PDF } from "./ovningar.js";
 // Merge all exercises — SvFF hand-curated exercises take precedence
 const OVN = { ...OVN_PDF, ...OVN_SVFF };
 
-// ─── OVERRIDE SYSTEM ──────────────────────────────────────────────────────────
+// ─── AUTH HELPERS ─────────────────────────────────────────────────────────────
+const PIN_LEN = 6;
+
+// SHA-256 PIN hash (async, Web Crypto API)
+const hashPin = async (pin) => {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+};
+
+// Supabase helpers for rik_users
+const supaGetUsers = async () => {
+  if (!SUPA_OK) return [];
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/rik_users?select=*&order=namn`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+    });
+    return r.ok ? await r.json() : [];
+  } catch { return []; }
+};
+
+const supaUpsertUser = async (user) => {
+  if (!SUPA_OK) return false;
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/rik_users`, {
+      method: 'POST',
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({...user, updated_at: new Date().toISOString()})
+    });
+    return r.ok;
+  } catch { return false; }
+};
+
+const supaVerifyPin = async (userId, pin) => {
+  if (!SUPA_OK) return null;
+  try {
+    const hash = await hashPin(pin);
+    const r = await fetch(
+      `${SUPA_URL}/rest/v1/rik_users?id=eq.${encodeURIComponent(userId)}&aktiv=eq.true&pin_hash=eq.${hash}&select=id,namn,roll`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
+    if (!r.ok) return null;
+    const rows = await r.json();
+    return rows.length > 0 ? rows[0] : null;
+  } catch { return null; }
+};
+
+// Supabase helpers for självskattning
+const supaGetSjalvskattning = async (userId) => {
+  if (!SUPA_OK) return [];
+  try {
+    const r = await fetch(
+      `${SUPA_URL}/rest/v1/rik_sjalvskattning?user_id=eq.${encodeURIComponent(userId)}&select=*`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
+    return r.ok ? await r.json() : [];
+  } catch { return []; }
+};
+
+const supaAllSjalvskattning = async () => {
+  if (!SUPA_OK) return [];
+  try {
+    const r = await fetch(
+      `${SUPA_URL}/rest/v1/rik_sjalvskattning?select=*`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
+    return r.ok ? await r.json() : [];
+  } catch { return []; }
+};
+
+const supaUpsertSjalvskattning = async (data) => {
+  if (!SUPA_OK) return false;
+  try {
+    const r = await fetch(`${SUPA_URL}/rest/v1/rik_sjalvskattning`, {
+      method: 'POST',
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+      body: JSON.stringify({...data, updated_at: new Date().toISOString()})
+    });
+    return r.ok;
+  } catch { return false; }
+};
+
+
 // Overrides are stored in localStorage and Supabase under key "ovn_overrides"
 // An override: { typ, skede, kategori, principer } — merged over the original
 
@@ -1945,6 +2028,570 @@ const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════
+// PORTAL — Login
+// ═══════════════════════════════════════════════════════════════════════
+const PortalVy = ({onLogin}) => {
+  const [users,     setUsers]     = useState([]);
+  const [selId,     setSelId]     = useState('');
+  const [pin,       setPin]       = useState('');
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState('');
+  const [checking,  setChecking]  = useState(false);
+
+  useEffect(()=>{
+    supaGetUsers().then(u=>{ setUsers(u.filter(x=>x.aktiv)); setLoading(false); });
+  },[]);
+
+  const handleLogin = async () => {
+    if (!selId || pin.length !== PIN_LEN) return;
+    setChecking(true); setError('');
+    const user = await supaVerifyPin(selId, pin);
+    if (user) { onLogin(user); }
+    else { setError('Fel PIN — försök igen'); setPin(''); }
+    setChecking(false);
+  };
+
+  const coaches = users.filter(u=>u.roll==='coach'||u.roll==='tranare');
+  const spelare = users.filter(u=>u.roll==='spelare');
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <img src={LOGO} alt="RIK" className="h-20 w-20 object-contain mb-3"/>
+          <div className="text-xl font-black text-gray-900">Rynninge IK</div>
+          <div className="text-amber-600 text-sm font-semibold">P14–16 · Coachappen</div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+          {loading ? (
+            <div className="text-center text-gray-400 py-8">Laddar…</div>
+          ) : (
+            <>
+              {/* Välj person */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">Vem är du?</label>
+                <select value={selId} onChange={e=>{setSelId(e.target.value);setPin('');setError('');}}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  <option value="">— Välj namn —</option>
+                  {coaches.length>0&&<optgroup label="Ledare / Tränare">
+                    {coaches.map(u=><option key={u.id} value={u.id}>{u.namn}</option>)}
+                  </optgroup>}
+                  {spelare.length>0&&<optgroup label="Spelare">
+                    {spelare.map(u=><option key={u.id} value={u.id}>{u.namn}</option>)}
+                  </optgroup>}
+                </select>
+              </div>
+
+              {/* PIN */}
+              {selId&&(
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 block">PIN ({PIN_LEN} siffror)</label>
+                  <input
+                    type="password" inputMode="numeric" pattern="[0-9]*"
+                    maxLength={PIN_LEN} value={pin}
+                    onChange={e=>{ setPin(e.target.value.replace(/\D/g,'')); setError(''); }}
+                    onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-center text-2xl tracking-[0.5em] text-gray-900 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    autoFocus
+                  />
+                  {error&&<div className="text-red-600 text-xs font-medium mt-1.5 text-center">{error}</div>}
+                </div>
+              )}
+
+              {selId&&pin.length===PIN_LEN&&(
+                <button onClick={handleLogin} disabled={checking}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-sm transition-colors disabled:opacity-50">
+                  {checking ? 'Kontrollerar…' : 'Logga in'}
+                </button>
+              )}
+
+              {users.length===0&&(
+                <div className="text-center text-gray-400 text-sm py-4">
+                  Inga användare skapade ännu.<br/>
+                  <span className="text-amber-600 font-medium">Kontakta tränaren.</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="text-center mt-4 text-xs text-gray-400">
+          Glömt PIN? Kontakta tränaren.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// ADMIN — Användarhantering (bara coacher)
+// ═══════════════════════════════════════════════════════════════════════
+const AdminVy = ({onBack, currentUser}) => {
+  const [users,    setUsers]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [editUser, setEditUser] = useState(null); // user being edited
+  const [newPin,   setNewPin]   = useState('');
+  const [lagetJson, setLagetJson] = useState('');
+  const [showImport, setShowImport] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [msg,      setMsg]      = useState('');
+
+  const reload = () => { setLoading(true); supaGetUsers().then(u=>{setUsers(u);setLoading(false);}); };
+  useEffect(()=>reload(),[]);
+
+  const saveUser = async (user) => {
+    setSaving(true);
+    const u = {...user};
+    if (newPin && newPin.length === PIN_LEN) {
+      u.pin_hash = await hashPin(newPin);
+    }
+    const ok = await supaUpsertUser(u);
+    setMsg(ok ? '✓ Sparat' : '✗ Fel vid sparning');
+    setTimeout(()=>setMsg(''),2500);
+    setSaving(false);
+    setEditUser(null);
+    setNewPin('');
+    reload();
+  };
+
+  const importFromLaget = async () => {
+    try {
+      const data = JSON.parse(lagetJson);
+      const persons = Array.isArray(data) ? data : (data.persons || data.players || data.members || []);
+      let count = 0;
+      for (const p of persons) {
+        const namn = p.namn || p.name || p.fullName || `${p.firstName||''} ${p.lastName||''}`.trim();
+        const id = `ledare_${(p.id||p.memberId||namn).toString().replace(/\s+/g,'_')}`;
+        if (!namn) continue;
+        await supaUpsertUser({ id, namn, roll: 'tranare', aktiv: true, laget_data: p });
+        count++;
+      }
+      setMsg(`✓ Importerade ${count} ledare`);
+      setTimeout(()=>setMsg(''),3000);
+      setShowImport(false);
+      setLagetJson('');
+      reload();
+    } catch(e) {
+      setMsg('✗ Ogiltigt JSON');
+      setTimeout(()=>setMsg(''),3000);
+    }
+  };
+
+  const addSpelareFromTrupp = async () => {
+    setSaving(true);
+    let count = 0;
+    for (const sp of TRUPP) {
+      const existing = users.find(u=>u.id===String(sp.id));
+      if (!existing) {
+        await supaUpsertUser({ id: String(sp.id), namn: sp.namn, roll: 'spelare', aktiv: true });
+        count++;
+      }
+    }
+    setMsg(`✓ Lade till ${count} spelare`);
+    setTimeout(()=>setMsg(''),3000);
+    setSaving(false);
+    reload();
+  };
+
+  const ROLL_LABEL = {spelare:'Spelare',coach:'Coach',tranare:'Tränare'};
+  const ROLL_COLOR = {spelare:'bg-blue-100 text-blue-800',coach:'bg-amber-100 text-amber-800',tranare:'bg-green-100 text-green-800'};
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <HomeBtn onClick={onBack}/>
+            <span className="text-gray-400">·</span>
+            <span className="font-bold text-gray-900 text-sm">Användaradmin</span>
+          </div>
+          <div className="flex gap-2">
+            {msg&&<span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">{msg}</span>}
+            <button onClick={()=>setShowImport(v=>!v)}
+              className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-3 py-2 rounded-xl">
+              + Importera ledare
+            </button>
+            <button onClick={addSpelareFromTrupp} disabled={saving}
+              className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl disabled:opacity-50">
+              + Lägg till alla spelare
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
+        {/* Import laget.se JSON */}
+        {showImport&&(
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+            <div className="text-sm font-bold text-gray-900">Importera ledare från laget.se</div>
+            <div className="text-xs text-gray-500">Klistra in JSON från laget.se API eller exportfunktion. Förväntat format: array av objekt med namn/name och id/memberId.</div>
+            <textarea value={lagetJson} onChange={e=>setLagetJson(e.target.value)}
+              placeholder='[{"namn":"Tomas Blomberg","id":"12345"}, ...]'
+              className="w-full h-28 text-xs border border-gray-200 rounded-xl p-3 font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"/>
+            <div className="flex gap-2">
+              <button onClick={importFromLaget}
+                className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl">
+                Importera
+              </button>
+              <button onClick={()=>{setShowImport(false);setLagetJson('');}}
+                className="text-xs font-medium text-gray-600 hover:text-gray-900 px-3 py-2">
+                Avbryt
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Redigera användare */}
+        {editUser&&(
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+            <div className="text-sm font-bold text-amber-900">Redigera: {editUser.namn}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Namn</label>
+                <input value={editUser.namn} onChange={e=>setEditUser(u=>({...u,namn:e.target.value}))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"/>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Roll</label>
+                <select value={editUser.roll} onChange={e=>setEditUser(u=>({...u,roll:e.target.value}))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
+                  <option value="spelare">Spelare</option>
+                  <option value="tranare">Tränare</option>
+                  <option value="coach">Coach</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">
+                Sätt ny PIN ({PIN_LEN} siffror) — lämna tomt för att behålla befintlig
+              </label>
+              <input type="password" inputMode="numeric" maxLength={PIN_LEN}
+                value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,''))}
+                placeholder="Ny PIN…"
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white font-mono tracking-widest focus:outline-none focus:ring-1 focus:ring-amber-400"/>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={editUser.aktiv}
+                  onChange={e=>setEditUser(u=>({...u,aktiv:e.target.checked}))}
+                  className="rounded border-gray-300"/>
+                Aktiv
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={()=>saveUser(editUser)} disabled={saving}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50">
+                <Check className="h-3.5 w-3.5"/>{saving?'Sparar…':'Spara'}
+              </button>
+              <button onClick={()=>{setEditUser(null);setNewPin('');}}
+                className="text-xs text-gray-500 hover:text-gray-700 px-3 py-2">Avbryt</button>
+            </div>
+          </div>
+        )}
+
+        {/* Användarlista */}
+        {loading ? <div className="text-center text-gray-400 py-12">Laddar…</div> : (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">{users.length} användare</div>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {users.length===0&&<div className="px-5 py-8 text-center text-gray-400 text-sm">Inga användare ännu</div>}
+              {users.map(u=>(
+                <div key={u.id} className={`flex items-center justify-between px-5 py-3 ${!u.aktiv?'opacity-40':''}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-sm text-gray-700">
+                      {u.namn?.charAt(0)||'?'}
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{u.namn}</div>
+                      <div className="text-[10px] text-gray-400">{u.id} {!u.aktiv&&'· Inaktiv'}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ROLL_COLOR[u.roll]||'bg-gray-100 text-gray-700'}`}>
+                      {ROLL_LABEL[u.roll]||u.roll}
+                    </span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${u.pin_hash?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
+                      {u.pin_hash?'PIN satt':'Ingen PIN'}
+                    </span>
+                    <button onClick={()=>{setEditUser(u);setNewPin('');}}
+                      className="text-xs text-amber-600 hover:text-amber-800 font-medium px-2 py-1 rounded-lg hover:bg-amber-50">
+                      Redigera
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// SPELARVY — Read-only + självskattning
+// ═══════════════════════════════════════════════════════════════════════
+const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, onLogout}) => {
+  const [tab, setTab]     = useState('traning');
+  const [skattningar, setSkattningar] = useState([]);
+  const [editSkatt, setEditSkatt]     = useState(null); // {blockId, tranNr}
+  const [draft, setDraft]             = useState({rpe:5,humor:'bra',kommentar:''});
+  const [saving, setSaving]           = useState(false);
+
+  const spelId = currentUser.spelare_id || currentUser.id;
+  const sp     = trupp.find(s=>String(s.id)===String(spelId));
+
+  useEffect(()=>{
+    supaGetSjalvskattning(currentUser.id).then(setSkattningar);
+  },[currentUser.id]);
+
+  // Träningar spelaren deltog i
+  const minaTräningar = useMemo(()=>{
+    const all = [...(blocks||[]),...(mvBlocks||[])];
+    return all.flatMap(block=>
+      (block.trän||[]).filter(tran=>{
+        const ts = appState[`${block.id}-${tran.nr}`]||{};
+        const narv = ts.narvaro||{};
+        return ts.avslutad && (narv[spelId]?.status==='bla'||narv[spelId]?.status==='vit');
+      }).map(tran=>({block,tran,ts:appState[`${block.id}-${tran.nr}`]||{}}))
+    ).sort((a,b)=>(b.ts.avslutadDatum||'').localeCompare(a.ts.avslutadDatum||''));
+  },[blocks,mvBlocks,appState,spelId]);
+
+  const sparaSkattning = async () => {
+    if (!editSkatt) return;
+    setSaving(true);
+    await supaUpsertSjalvskattning({
+      user_id: currentUser.id,
+      block_id: editSkatt.blockId,
+      tran_nr:  editSkatt.tranNr,
+      rpe:       draft.rpe,
+      humor:     draft.humor,
+      kommentar: draft.kommentar || null,
+    });
+    const updated = await supaGetSjalvskattning(currentUser.id);
+    setSkattningar(updated);
+    setSaving(false);
+    setEditSkatt(null);
+  };
+
+  const HUMOR = [
+    {id:'toppen',  emoji:'🤩', label:'Toppen'},
+    {id:'bra',     emoji:'😊', label:'Bra'},
+    {id:'okej',    emoji:'😐', label:'Okej'},
+    {id:'trott',   emoji:'😴', label:'Trött'},
+    {id:'slit',    emoji:'😓', label:'Slit'},
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm px-4 py-3">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <img src={LOGO} alt="RIK" className="h-8 w-8 object-contain flex-shrink-0"/>
+            <div>
+              <div className="font-bold text-sm text-gray-900">{sp?.namn||currentUser.namn}</div>
+              <div className="text-[10px] text-amber-600 font-semibold">{sp?.pos||'Spelare'} · Rynninge IK P14–16</div>
+            </div>
+          </div>
+          <button onClick={onLogout} className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-1.5 border border-gray-200 rounded-xl">
+            Logga ut
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="max-w-2xl mx-auto px-4 pt-4">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
+          {[['traning','Mina träningar'],['statistik','Min statistik']].map(([v,l])=>(
+            <button key={v} onClick={()=>setTab(v)}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${tab===v?'bg-white shadow-sm text-gray-900':'text-gray-500'}`}>{l}</button>
+          ))}
+        </div>
+
+        {/* ── Mina träningar ── */}
+        {tab==='traning'&&(
+          <div className="space-y-3 pb-8">
+            {minaTräningar.length===0&&(
+              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+                <div className="text-4xl mb-3">⚽</div>
+                <div className="font-semibold text-gray-600">Inga träningar än</div>
+                <div className="text-sm mt-1">Dina genomförda träningar visas här</div>
+              </div>
+            )}
+            {minaTräningar.map(({block,tran,ts})=>{
+              const key = `${block.id}-${tran.nr}`;
+              const narv = ts.narvaro||{};
+              const grupp = narv[spelId]?.status==='bla'?'Blå':'Vit';
+              const skatt = skattningar.find(s=>s.block_id===String(block.id)&&s.tran_nr===tran.nr);
+              const isEdit = editSkatt?.blockId===String(block.id)&&editSkatt?.tranNr===tran.nr;
+              const h = HUMOR.find(h=>h.id===skatt?.humor);
+
+              return (
+                <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="px-4 py-3 flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">{block.titel}</div>
+                      <div className="text-sm font-bold text-gray-900 mt-0.5">{tran.syfte?.slice(0,60)}{tran.syfte?.length>60?'…':''}</div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${grupp==='Blå'?'bg-blue-100 text-blue-800':'bg-gray-100 text-gray-700'}`}>
+                          {grupp} grupp
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {ts.avslutadDatum?new Date(ts.avslutadDatum).toLocaleDateString('sv-SE',{weekday:'short',month:'short',day:'numeric'}):''}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Skattning-sammanfattning */}
+                    {skatt&&!isEdit&&(
+                      <div className="text-center flex-shrink-0">
+                        <div className="text-2xl">{h?.emoji||'•'}</div>
+                        <div className="text-[10px] font-bold text-gray-500">RPE {skatt.rpe}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Övningar */}
+                  <div className="px-4 pb-3">
+                    <div className="flex flex-wrap gap-1">
+                      {tran.delar.filter(d=>d.ovnId||d.namn).map((d,i)=>(
+                        <span key={i} className={`text-[10px] px-2 py-0.5 rounded-full border ${TYPFARG[d.typ]?.replace('bg-','border-')||'border-gray-200'} bg-gray-50 text-gray-600`}>
+                          {d.ovnId?getOvn(d.ovnId)?.namn||d.namn:d.namn}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Självskattning */}
+                  {!isEdit&&(
+                    <button onClick={()=>{
+                      setEditSkatt({blockId:String(block.id),tranNr:tran.nr});
+                      setDraft({rpe:skatt?.rpe||5,humor:skatt?.humor||'bra',kommentar:skatt?.kommentar||''});
+                    }} className="w-full flex items-center justify-center gap-2 py-2.5 border-t border-gray-50 text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
+                      {skatt?'✎ Ändra min skattning':'+ Lägg till självskattning'}
+                    </button>
+                  )}
+
+                  {/* Skattnings-editor */}
+                  {isEdit&&(
+                    <div className="border-t border-gray-100 px-4 py-4 space-y-4 bg-amber-50">
+                      {/* RPE */}
+                      <div>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                          RPE — Upplevd ansträngning: <span className="text-amber-700">{draft.rpe}/10</span>
+                        </div>
+                        <input type="range" min="1" max="10" value={draft.rpe}
+                          onChange={e=>setDraft(d=>({...d,rpe:+e.target.value}))}
+                          className="w-full accent-amber-500"/>
+                        <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                          <span>1 Lätt</span><span>5 Medel</span><span>10 Maximal</span>
+                        </div>
+                      </div>
+                      {/* Humör */}
+                      <div>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Hur kände du dig?</div>
+                        <div className="flex gap-2 justify-between">
+                          {HUMOR.map(h=>(
+                            <button key={h.id} onClick={()=>setDraft(d=>({...d,humor:h.id}))}
+                              className={`flex-1 flex flex-col items-center py-2 rounded-xl border-2 transition-colors ${draft.humor===h.id?'border-amber-400 bg-white':'border-transparent bg-white/60'}`}>
+                              <span className="text-xl">{h.emoji}</span>
+                              <span className="text-[9px] text-gray-500 mt-0.5">{h.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Kommentar */}
+                      <div>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kommentar (valfritt)</div>
+                        <textarea value={draft.kommentar} onChange={e=>setDraft(d=>({...d,kommentar:e.target.value}))}
+                          placeholder="Vad tyckte du om träningen?"
+                          rows={2}
+                          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"/>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={sparaSkattning} disabled={saving}
+                          className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-50">
+                          {saving?'Sparar…':'Spara'}
+                        </button>
+                        <button onClick={()=>setEditSkatt(null)}
+                          className="px-4 text-gray-500 hover:text-gray-700 text-sm font-medium">
+                          Avbryt
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Min statistik ── */}
+        {tab==='statistik'&&(
+          <div className="space-y-4 pb-8">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center shadow-sm">
+                <div className="text-3xl font-black text-amber-600">{minaTräningar.length}</div>
+                <div className="text-xs text-gray-500 mt-1">Träningar</div>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center shadow-sm">
+                <div className="text-3xl font-black text-gray-900">{skattningar.length}</div>
+                <div className="text-xs text-gray-500 mt-1">Skattningar</div>
+              </div>
+            </div>
+            {skattningar.length>0&&(
+              <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Snitt RPE</div>
+                <div className="text-4xl font-black text-amber-600">
+                  {(skattningar.reduce((s,x)=>s+(x.rpe||0),0)/skattningar.length).toFixed(1)}
+                  <span className="text-lg text-gray-400">/10</span>
+                </div>
+              </div>
+            )}
+            {/* Skedesfördelning */}
+            {minaTräningar.length>0&&(()=>{
+              const sc = {};
+              for (const {tran} of minaTräningar) {
+                const skeden = [...new Set(tran.delar.filter(d=>d.ovnId).map(d=>getOvn(d.ovnId)?.skede).filter(Boolean))];
+                for (const s of skeden) sc[s]=(sc[s]||0)+1;
+              }
+              const max = Math.max(...Object.values(sc),1);
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Tränat per skeende</div>
+                  <div className="space-y-3">
+                    {Object.entries(sc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+                      const sk=SKEDEN[k];
+                      return (
+                        <div key={k}>
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm text-gray-700">{sk?.icon} {sk?.label||k}</span>
+                            <span className="text-sm font-bold text-gray-900">{v}</span>
+                          </div>
+                          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-2 bg-amber-400 rounded-full" style={{width:`${Math.round(v/max*100)}%`}}/>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ArbetssattVy = ({onBack}) => {
   const [openSek, setOpenSek] = React.useState("filosofi");
 
@@ -2148,7 +2795,7 @@ const VarderingarVy = ({onBack}) => (
 // ═══════════════════════════════════════════════════════════════════════
 // PLANERINGS VY (startsidan)
 // ═══════════════════════════════════════════════════════════════════════
-const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, onStatistik, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks, kalevent=[]}) => {
+const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, onStatistik, onAdmin, onLogout, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks, kalevent=[], currentUser}) => {
   const [openBlock, setOpenBlock] = useState(blocks[0]?.id||1);
   const [visaAvslutade, setVisaAvslutade] = useState(false);
   const [showGenModal, setShowGenModal] = useState(false);
@@ -2238,6 +2885,14 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
             </button>
             <button onClick={onRefreshTrupp} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-2.5 py-2 rounded-xl transition-colors" title="Uppdatera spelarlistan från laget.se">
               <RefreshCw className="h-3.5 w-3.5"/>
+            </button>
+            {(currentUser?.roll==='coach'||currentUser?.roll==='tranare')&&(
+              <button onClick={onAdmin} className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-2.5 py-2 rounded-xl" title="Användaradmin">
+                👤
+              </button>
+            )}
+            <button onClick={onLogout} className="text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 px-2.5 py-2 rounded-xl" title="Logga ut">
+              ↩
             </button>
             {syncBadge}
           </div>
@@ -2481,6 +3136,9 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
 // ROOT APP – med Supabase-synk
 // ═══════════════════════════════════════════════════════════════════════
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(()=>{
+    try { return JSON.parse(sessionStorage.getItem('_rik_user')||'null'); } catch { return null; }
+  });
   const [appState, setAppState] = useState(() => lsGet("_state", {}));
   const [blocks,   setBlocks]   = useState(() => lsGet("_blocks", null) || GRUNDBLOCK);
   const [mvBlocks, setMvBlocks] = useState(() => lsGet("_mvblocks", null) || []);
@@ -2591,6 +3249,30 @@ export default function App() {
   const resolvedBlock = activeBlock ? blocks.find(b=>b.id===activeBlock.id)||activeBlock : null;
   const resolvedTran  = (resolvedBlock && activeTran) ? (resolvedBlock.trän.find(t=>t.nr===activeTran.nr)||activeTran) : activeTran;
 
+  const handleLogin = (user) => {
+    sessionStorage.setItem('_rik_user', JSON.stringify(user));
+    setCurrentUser(user);
+  };
+  const handleLogout = () => {
+    sessionStorage.removeItem('_rik_user');
+    setCurrentUser(null);
+  };
+
+  // ── Portal — ej inloggad ──
+  if (!currentUser) return <PortalVy onLogin={handleLogin}/>;
+
+  // ── Spelarvy ──
+  if (currentUser.roll==='spelare') return (
+    <SpelarVy
+      currentUser={currentUser} blocks={blocks} mvBlocks={mvBlocks}
+      appState={appState} trupp={trupp} onLogout={handleLogout}/>
+  );
+
+  // ── Admin (bara coacher) ──
+  if (view==='admin') return (
+    <AdminVy onBack={goHome} currentUser={currentUser}/>
+  );
+
   if (view==="ovningar") return (
     <OvningsbankVy favs={favs} setFavs={f=>{setFavs(f);saveF(f);}} onBack={goHome} onVälj={null} väljLabel={null}/>
   );
@@ -2674,6 +3356,9 @@ export default function App() {
       onVarderingar={()=>setView("varderingar")}
       onArbetssatt={()=>setView("arbetssatt")}
       onStatistik={()=>setView("statistik")}
+      onAdmin={()=>setView("admin")}
+      onLogout={handleLogout}
+      currentUser={currentUser}
       syncBadge={<SyncBadge/>}
       mvBlocks={mvBlocks}
       setMvBlocks={updateMvBlocks}
