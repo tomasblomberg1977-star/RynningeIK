@@ -1,5 +1,46 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 * { font-family: Inter, system-ui, sans-serif; }
+
+/* ── Rynninge IK design tokens ─────────────────────────────────────── */
+:root {
+  --rik-gold:        #C49A10;   /* amber-600 equiv, gold on white */
+  --rik-gold-light:  #FDF3C0;   /* gold tint background */
+  --rik-gold-border: #FDE68A;   /* gold border */
+  --rik-blue:        #1E40AF;   /* club blue */
+  --rik-blue-light:  #EFF6FF;   /* blue tint */
+}
+
+/* Gold accent utilities */
+.rik-gold        { color: var(--rik-gold); }
+.rik-gold-bg     { background: var(--rik-gold-light); border-color: var(--rik-gold-border); }
+.rik-gold-btn    { background: var(--rik-gold); color: white; }
+.rik-gold-btn:hover { background: #B8860B; }
+
+/* Step numbers */
+.step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--rik-gold-light); border: 1px solid var(--rik-gold-border);
+  font-size: 11px; font-weight: 600; color: var(--rik-gold);
+  flex-shrink: 0;
+}
+
+/* Monospace timer */
+.rik-timer {
+  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  letter-spacing: -0.05em;
+}
+
+/* Active nav tab */
+.nav-tab-active {
+  background: var(--rik-gold-light) !important;
+  color: var(--rik-gold) !important;
+}
+
+/* Drag handle */
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
