@@ -1086,7 +1086,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
             const vad   = ovn?.vad || null;
             const varfor= ovn?.varfor || null;
             const beskr = (!vad && !steg.length) ? (part.beskr || "") : "";
-            return (
+            return (<>
           {/* ── Timer bar ── sticky, full width */}
           <div className="sticky top-0 z-10 bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm">
             <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
@@ -1139,7 +1139,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               <OvnKort id={part.ovnId} dark minimal/>
             )}
           </div>
-            );
+            </>);
           })()}
 
           {/* Ledarbeteende */}
