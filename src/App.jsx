@@ -11,6 +11,25 @@ import { OVN_PDF } from "./ovningar.js";
 // Merge all exercises — SvFF hand-curated exercises take precedence
 const OVN = { ...OVN_PDF, ...OVN_SVFF };
 
+// ─── OVERRIDE SYSTEM ──────────────────────────────────────────────────────────
+// Overrides are stored in localStorage and Supabase under key "ovn_overrides"
+// An override: { typ, skede, kategori, principer } — merged over the original
+
+const ALL_TYPER = ["Spelövning","Färdighetsövning","Aktiveringsövning","Explosivitetsövning","Koordinationsövning","Löpteknik","Rörlighetsövning","Styrkeövning"];
+const ALL_PRINCIPER = ["Aktivering","Djupledsspel","Explosivitet","Förhindra avslut","Förhindra djupledsspel","Förhindra speluppbyggnad","Igångsättning","Inlägg & avslut","Komma till avslut","Kontra snabbt","Koordination","Löpteknik","Muskelstyrka","Rädda skott","Rörlighet","Speldjup bakåt","Återerövring"];
+const ALL_KATEGORIER = ["Speluppbyggnad","Förhindra speluppbyggnad / Press","Omst. → Anfall – Kontring","Omst. → Försvar – Återerövring","Komma till avslut","Djupledsspel & kombinationer","Inlägg & avslut","Målvakt – Igångsättning","Målvakt – Djupledsspel & frilägen","Målvakt – Explosivitet","Målvakt – Inlägg","Förhindra & rädda avslut","Aktivering & stabilitet","Explosivitet","Koordination","Löpteknik & rörelse","Muskelstyrka","Rörlighet","Förberedelseträning – Allmän","Förberedelseträning – Rondo","Förberedelseträning – Skott"];
+
+// Returns exercise merged with any user overrides
+const lsGetOverrides = () => { try { return JSON.parse(localStorage.getItem("_ovn_overrides") || "{}"); } catch { return {}; } };
+const lsSetOverrides = (v) => { try { localStorage.setItem("_ovn_overrides", JSON.stringify(v)); } catch {} };
+
+const getOvn = (id) => {
+  const base = OVN[id];
+  if (!base) return null;
+  const over = lsGetOverrides()[id];
+  return over ? { ...base, ...over } : base;
+};
+
 // Filter calendar events: 7 days back to 180 days forward from today
 const KALEVENT = (() => {
   const now = new Date();
@@ -306,7 +325,7 @@ const genBlock = (existingBlocks, selectedSkeden) => {
 
   // Pool of exercises — ONLY PDF-exercises (have diagrams, id starts with "ovningar")
   // OVN_SVFF hand-curated exercises are excluded from block generation
-  const pdfOvn = Object.values(OVN).filter(o => o.id.startsWith("ovningar"));
+  const pdfOvn = Object.keys(OVN).filter(id => id.startsWith("ovningar")).map(id => getOvn(id));
   const ovnPool = pdfOvn.filter(o => activeSkeden.includes(o.skede));
   const byTyp = {
     forb: ovnPool.filter(o => o.typ === "Färdighetsövning" || o.typ === "Styrkeövning" || o.typ === "Fysisk övning"),
@@ -345,7 +364,7 @@ const genBlock = (existingBlocks, selectedSkeden) => {
     };
 
     // Pooler — färdighetsövningar EXKLUDERAR MV-övningar
-    const fysPool  = Object.values(OVN).filter(o => o.id.startsWith("ovningar") && o.skede === "FYS");
+    const fysPool  = Object.keys(OVN).filter(id => id.startsWith("ovningar")).map(id => getOvn(id)).filter(o => o.skede === "FYS");
     const fardPool = ovnPool.filter(o => o.typ === "Färdighetsövning" && o.skede !== "MV");
     const spelPool = ovnPool.filter(o => o.typ === "Spelövning");
 
@@ -701,7 +720,24 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
   const [filterTyp,setFilterTyp] = useState("alla");
   const [onlyFav,setOnlyFav] = useState(false);
   const [sel,setSel] = useState(null);
-  const allOvn = Object.values(OVN);
+  const [showEdit,setShowEdit] = useState(false);
+  const [overrides,setOverrides] = useState(lsGetOverrides);
+  const [editDraft,setEditDraft] = useState(null); // { typ, skede, kategori, principer[] }
+
+  // Merge overrides into OVN for display
+  const allOvn = useMemo(()=>Object.values(OVN).map(o=>overrides[o.id]?{...o,...overrides[o.id]}:o),[overrides]);
+
+  const saveOverride = (id, draft) => {
+    const next = {...overrides, [id]: draft};
+    setOverrides(next);
+    lsSetOverrides(next);
+  };
+  const removeOverride = (id) => {
+    const next = {...overrides};
+    delete next[id];
+    setOverrides(next);
+    lsSetOverrides(next);
+  };
 
   const filtered = useMemo(()=>{
     const ql = q.trim().toLowerCase();
@@ -719,7 +755,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
     });
   },[q,filterSkede,filterTyp,onlyFav,favs,allOvn]);
 
-  const selOvn = sel ? OVN[sel] : null;
+  const selOvn = sel ? (overrides[sel] ? {...OVN[sel],...overrides[sel]} : OVN[sel]) : null;
   const toggleFav = (id) => { const n=favs.includes(id)?favs.filter(x=>x!==id):[...favs,id]; setFavs(n); saveF(n); };
 
   return (
@@ -773,12 +809,13 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
               const isFav=favs.includes(o.id);
               const sk=SKEDEN[o.skede];
               return (
-                <div key={o.id} onClick={()=>setSel(act?null:o.id)}
+                <div key={o.id} onClick={()=>{setSel(act?null:o.id);setShowEdit(false);setEditDraft(null);}}
                   className={`rounded-xl border p-3 cursor-pointer transition-all ${act?"border-blue-900 bg-white text-gray-900 shadow-sm":"border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm"}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap mb-1">
                         <span className={`text-[10px] font-black ${act?"text-amber-500":"text-gray-500"}`}>{o.id}</span>
+                        {overrides[o.id]&&<span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-bold">✎ Ändrad</span>}
                         {sk&&<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${sk.farg} ${sk.text}`}>{sk.icon}</span>}
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${act?"bg-gray-100 text-gray-900":"bg-gray-50 text-gray-500"}`}>{o.typ}</span>
                       </div>
@@ -810,19 +847,81 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                   <ArrowLeft className="h-4 w-4"/>Tillbaka till listan
                 </button>
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
                       <span className="bg-white text-amber-600 text-xs font-black px-2 py-0.5 rounded">SvFF · {selOvn.id}</span>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded ${SKEDEN[selOvn.skede]?.farg||"bg-slate-200"} ${SKEDEN[selOvn.skede]?.text||"text-gray-700"}`}>{SKEDEN[selOvn.skede]?.label}</span>
                       <span className="text-xs bg-gray-50 text-gray-600 px-2 py-0.5 rounded font-medium">{selOvn.typ}</span>
+                      {overrides[selOvn.id]&&<span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-bold">✎ Ändrad</span>}
                     </div>
                     <h2 className="text-lg font-black text-slate-900">{selOvn.namn}</h2>
                   </div>
-                  <button onClick={()=>toggleFav(selOvn.id)}
-                    className={`h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-full border transition-colors ${favs.includes(selOvn.id)?"border-amber-300 bg-yellow-50 text-yellow-600":"border-gray-200 bg-white text-gray-600 hover:text-yellow-500"}`}>
-                    <Star className={`h-4 w-4 ${favs.includes(selOvn.id)?"fill-yellow-400":""}`}/>
-                  </button>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={()=>{ setShowEdit(v=>!v); setEditDraft(showEdit?null:{typ:selOvn.typ,skede:selOvn.skede,kategori:selOvn.kategori||"",principer:[...(selOvn.principer||[])]}); }}
+                      className={`h-9 px-3 flex items-center gap-1.5 rounded-xl border text-xs font-bold transition-colors ${showEdit?"bg-amber-100 text-amber-800 border-amber-300":"bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-700"}`}>
+                      <Edit3 className="h-3.5 w-3.5"/>Kategorisera
+                    </button>
+                    <button onClick={()=>toggleFav(selOvn.id)}
+                      className={`h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-full border transition-colors ${favs.includes(selOvn.id)?"border-amber-300 bg-yellow-50 text-yellow-600":"border-gray-200 bg-white text-gray-600 hover:text-yellow-500"}`}>
+                      <Star className={`h-4 w-4 ${favs.includes(selOvn.id)?"fill-yellow-400":""}`}/>
+                    </button>
+                  </div>
                 </div>
+
+                {/* ── Inline override editor ── */}
+                {showEdit&&editDraft&&(
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                    <div className="text-xs font-bold text-amber-800 uppercase tracking-wide">Omkategorisera övning</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Typ</label>
+                        <select value={editDraft.typ} onChange={e=>setEditDraft(d=>({...d,typ:e.target.value}))}
+                          className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                          {ALL_TYPER.map(t=><option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Skeende</label>
+                        <select value={editDraft.skede} onChange={e=>setEditDraft(d=>({...d,skede:e.target.value}))}
+                          className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                          {Object.entries(SKEDEN).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Kategori</label>
+                      <select value={editDraft.kategori} onChange={e=>setEditDraft(d=>({...d,kategori:e.target.value}))}
+                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                        <option value="">— Ingen —</option>
+                        {ALL_KATEGORIER.map(k=><option key={k} value={k}>{k}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block">Principer</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ALL_PRINCIPER.map(p=>{
+                          const on=editDraft.principer.includes(p);
+                          return <button key={p} onClick={()=>setEditDraft(d=>({...d,principer:on?d.principer.filter(x=>x!==p):[...d.principer,p]}))}
+                            className={`text-[11px] px-2 py-1 rounded-lg border font-medium transition-colors ${on?"bg-amber-500 text-white border-amber-500":"bg-white text-gray-600 border-gray-200 hover:border-amber-300"}`}>{p}</button>;
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={()=>{saveOverride(selOvn.id,editDraft);setShowEdit(false);setEditDraft(null);}}
+                        className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-bold">
+                        <Check className="h-3.5 w-3.5"/>Spara
+                      </button>
+                      {overrides[selOvn.id]&&<button onClick={()=>{removeOverride(selOvn.id);setShowEdit(false);setEditDraft(null);}}
+                        className="flex items-center gap-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-2 text-xs font-bold">
+                        Återställ original
+                      </button>}
+                      <button onClick={()=>{setShowEdit(false);setEditDraft(null);}}
+                        className="flex items-center gap-1.5 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-xl px-4 py-2 text-xs font-medium ml-auto">
+                        Avbryt
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5">{selOvn.principer.map(p=><span key={p} className="bg-gray-50 text-gray-700 border border-gray-200 text-xs font-semibold px-2 py-0.5 rounded">{p}</span>)}</div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-gray-50 rounded-xl p-3 ring-1 ring-gray-100"><div className="text-[10px] font-black uppercase text-gray-500 mb-1">Vad</div><p className="text-sm text-gray-700">{selOvn.vad}</p></div>
@@ -887,7 +986,7 @@ const RedigeraVy = ({block, tran, onSpara, onBack}) => {
             <span className="text-gray-500">·</span>
             <div>
               <div className="text-gray-900 font-black text-sm">Redigera träning</div>
-              <div className="text-amber-600 text-xs font-medium">{block.titel} · T{tran.nr} · {tran.dag}</div>
+              <div className="text-amber-600 text-xs font-medium">{block.titel} · Träning {tran.nr}</div>
             </div>
           </div>
           <button onClick={()=>onSpara(delar)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-black">
@@ -1014,7 +1113,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               <span className="text-[10px] text-blue-200 font-semibold">{block.titel}</span>
               <span className="text-[10px] text-amber-500 font-bold">{block.vardeord}</span>
             </div>
-            <div className="text-sm font-black text-gray-900 leading-tight truncate mt-0.5">T{tran.nr} · {tran.dag} · V{tran.vec}</div>
+            <div className="text-sm font-medium text-gray-900 leading-tight truncate mt-0.5">Träning {tran.nr}</div>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -1687,7 +1786,7 @@ const VarderingarVy = ({onBack}) => (
 // ═══════════════════════════════════════════════════════════════════════
 // PLANERINGS VY (startsidan)
 // ═══════════════════════════════════════════════════════════════════════
-const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks}) => {
+const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, onVisaAvslutad, onRedigera, onOvningsbank, onVarderingar, onArbetssatt, syncBadge, trupp, onRefreshTrupp, mvBlocks, setMvBlocks, kalevent=[]}) => {
   const [openBlock, setOpenBlock] = useState(blocks[0]?.id||1);
   const [visaAvslutade, setVisaAvslutade] = useState(false);
   const [showGenModal, setShowGenModal] = useState(false);
@@ -1731,11 +1830,11 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <img src={LOGO} alt="RIK" className="h-9 w-9 object-contain"/>
-            <div>
-              <div className="text-gray-900 font-black text-sm leading-tight">Rynninge IK · P14–16</div>
-              <div className="text-amber-600 text-[10px] font-semibold tracking-wide">ETT SÄTT ATT UMGÅS</div>
+          <div className="flex items-center gap-2.5 min-w-0 flex-shrink-0">
+            <img src={LOGO} alt="RIK" className="h-9 w-9 object-contain flex-shrink-0"/>
+            <div className="min-w-0">
+              <div className="text-gray-900 font-bold text-sm leading-tight whitespace-nowrap">Rynninge IK</div>
+              <div className="text-amber-600 text-[10px] font-semibold tracking-wide whitespace-nowrap">P14–16</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1869,8 +1968,8 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                         {/* Top row: dag + badges + actions */}
                         <div className="flex items-center justify-between gap-3 px-3 pt-3 pb-2">
                           <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                            <div className={`${DAGFARG[tran.dag]||"bg-gray-100 text-gray-700"} text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 text-center leading-tight`}>
-                              <div>{tran.dag.slice(0,3).toUpperCase()}</div><div>V{tran.vec}</div>
+                            <div className="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 text-center leading-tight min-w-[32px]">
+                              <div>B{bi+1}</div><div>T{tran.nr}</div>
                             </div>
                             {tran.skeden.map(s=><SkedeBadge key={s} id={s}/>)}
                             {avslutad&&<span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">✓ Genomförd</span>}
@@ -1913,8 +2012,11 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                             <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0"/>
                             <select value={ts.event||""} onChange={e=>setEvent(block.id,tran.nr,e.target.value)}
                               className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-400 flex-1 min-w-0">
-                              <option value="">Koppla till laget.se-tillfälle…</option>
-                              {KALEVENT.map(e=><option key={e.id} value={e.id}>{e.label} ({e.dag})</option>)}
+                              <option value="">Koppla till planerad träning…</option>
+                              {kalevent
+                                .filter(e => e.datum >= new Date().toISOString().slice(0,10))
+                                .slice(0, 9)
+                                .map(e=><option key={e.id} value={e.id}>{e.label}</option>)}
                             </select>
                           </div>
                         )}
@@ -1999,6 +2101,9 @@ export default function App() {
   const [favs,     setFavs]     = useState(() => loadF());
   const [view,     setView]     = useState("plan");
   const [trupp,    setTrupp]    = useState(TRUPP);
+  const [kalevent, setKalevent] = useState(() => {
+    try { const s = lsGet("_kalevent"); return s?.length ? s : KALEVENT; } catch { return KALEVENT; }
+  });
   const [syncStatus, setSyncStatus] = useState(SUPA_OK ? "idle" : "offline");
   const [activeBlock, setActiveBlock] = useState(null);
   const [activeTran,  setActiveTran]  = useState(null);
@@ -2124,12 +2229,50 @@ export default function App() {
     />
   );
   const handleRefreshTrupp = () => {
-    // Fetches fresh player list — in production this would call laget.se API
-    // For now: show a prompt to paste updated data, or reset to default TRUPP
-    if (window.confirm("Återställ spelarlistan till standardlistan från laget.se?\nDetta ersätter eventuella lokala ändringar.")) {
-      setTrupp(TRUPP);
-      lsSet("_trupp", TRUPP);
-      alert("Spelarlistan uppdaterad! Tips: för live-synk med laget.se, exportera truppen som JSON och klistra in i inställningarna.");
+    const input = window.prompt(
+      "Klistra in träningsdatum från laget.se (ett datum per rad, format ÅÅÅÅ-MM-DD HH:MM):\n\nExempel:\n2026-08-18 19:00\n2026-08-20 18:30\n2026-08-21 19:30\n\nLämna tomt för att bara återställa spelarlistan.",
+      ""
+    );
+    if (input === null) return; // Avbryt
+
+    let uppdateradKalendern = false;
+
+    // Parse dates if provided
+    const lines = input.split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length > 0) {
+      const DAGNAMN = ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"];
+      const MÅNNAMN = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
+      const parsed = [];
+      for (const line of lines) {
+        // Accept "YYYY-MM-DD HH:MM" or "YYYY-MM-DD"
+        const m = line.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?/);
+        if (!m) continue;
+        const datum = m[1];
+        const tid = m[2] || "00:00";
+        const d = new Date(datum);
+        const dag = DAGNAMN[d.getDay()];
+        const måndag = d.getDate();
+        const mån = MÅNNAMN[d.getMonth()];
+        const label = `${dag.slice(0,3)} ${måndag} ${mån} · ${tid}`;
+        parsed.push({ id: `e_${datum}_${tid.replace(":","")}_${Math.random().toString(36).slice(2,6)}`, datum, dag, tid, label });
+      }
+      if (parsed.length > 0) {
+        // Save to Supabase via rik_kv
+        syncAll(appState, blocks, mvBlocks, parsed);
+        setKalevent(parsed);
+        lsSet("_kalevent", parsed);
+        uppdateradKalendern = true;
+      }
+    }
+
+    // Always reset trupp
+    setTrupp(TRUPP);
+    lsSet("_trupp", TRUPP);
+
+    if (uppdateradKalendern) {
+      alert(`✓ Spelarlistan återställd\n✓ Kalender uppdaterad med ${lines.length} datum`);
+    } else {
+      alert("✓ Spelarlistan återställd");
     }
   };
 
@@ -2146,6 +2289,7 @@ export default function App() {
       setMvBlocks={updateMvBlocks}
       trupp={trupp}
       onRefreshTrupp={handleRefreshTrupp}
+      kalevent={kalevent}
     />
   );
 }
