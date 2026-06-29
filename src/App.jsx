@@ -465,19 +465,17 @@ const HomeBtn = ({onClick}) => (
 
 // ─── PLANSKISS KOMPONENT ──────────────────────────────────────────────
 // ─── ÖVNINGSDIAGRAM (PDF-bild från SvFF) ─────────────────────────────
+const OVN_UTAN_DIAGRAM = new Set(['ovningar1_049','ovningar1_058','ovningar1_059','ovningar1_060','ovningar1_061','ovningar1_072','ovningar1_089','ovningar1_102','ovningar1_141','ovningar1_142','ovningar1_143','ovningar1_153','ovningar1_154','ovningar1_155','ovningar1_156','ovningar1_157','ovningar1_158','ovningar1_159','ovningar1_160','ovningar1_161','ovningar1_162','ovningar1_163','ovningar1_164','ovningar1_165','ovningar1_166','ovningar1_167','ovningar1_168','ovningar1_169','ovningar1_170','ovningar1_171','ovningar1_172','ovningar1_173','ovningar1_174','ovningar1_175','ovningar1_176','ovningar1_177','ovningar1_178','ovningar1_179','ovningar1_180','ovningar1_181','ovningar1_182','ovningar1_183','ovningar2_015','ovningar2_016','ovningar2_017','ovningar2_034','ovningar2_066','ovningar2_175']);
+
 const OvnDiagram = ({id}) => {
+  if (!id || OVN_UTAN_DIAGRAM.has(id)) return null;
   const [loaded, setLoaded] = React.useState(false);
   const [error,  setError]  = React.useState(false);
-  if (!id) return null;
+  if (error) return null;
   const src = `/imgs/${id}.jpg`;
   return (
-    <div className="mt-2 rounded-xl overflow-hidden border border-gray-300 bg-gray-100">
-      {!loaded && !error && (
-        <div className="h-24 flex items-center justify-center text-gray-500 text-xs">Laddar diagram…</div>
-      )}
-      {error && (
-        <div className="h-10 flex items-center justify-center text-gray-500 text-xs">Diagram ej tillgängligt</div>
-      )}
+    <div className="mt-2 rounded-xl overflow-hidden border border-gray-200">
+      {!loaded && <div className="h-16 flex items-center justify-center text-gray-400 text-xs bg-gray-50">Laddar…</div>}
       <img
         src={src}
         alt="SvFF taktikdiagram"
@@ -499,6 +497,7 @@ const Planskiss = ({skiss, org, skede}) => {
   const etiketter = skiss.etiketter || [];
   const dim = skiss.dim || '';
   const harMal = skiss.mal !== false;
+  const harStraffomrade = skiss.straffomrade === true;
   if (!spel.length && !koner.length) return null;
 
   // Plan: x:15–85, y:5–95 of a 300×420 SVG
@@ -508,6 +507,16 @@ const Planskiss = ({skiss, org, skede}) => {
   const R=11;
   const goalW=52, goalH=13;
   const midX = W/2;
+
+  // Penalty area constants (as % of plan)
+  // Upper: x:20-80, y:5-32 | Lower: x:20-80, y:68-95
+  const paX1=px(20), paX2=px(80);
+  const paTopY1=py(5), paTopY2=py(32);
+  const paBotY1=py(68), paBotY2=py(95);
+  // Goal box: x:35-65
+  const gbX1=px(35), gbX2=px(65);
+  const gbTopY=py(12);
+  const gbBotY=py(88);
 
   const Sym = ({x,y,roll,label}) => {
     const sx=px(x), sy=py(y);
@@ -557,6 +566,19 @@ const Planskiss = ({skiss, org, skede}) => {
           <text x={midX} y={3} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
           <rect x={midX-goalW/2} y={H-5} width={goalW} height={goalH} fill="none" stroke="white" strokeWidth={2}/>
           <text x={midX} y={H+goalH} textAnchor="middle" fill="white" fontSize={9} fontWeight="700">MV</text>
+        </>}
+        {/* Straffområden (om straffomrade: true) */}
+        {harStraffomrade&&<>
+          {/* Övre straffområde */}
+          <rect x={paX1} y={paTopY1} width={paX2-paX1} height={paTopY2-paTopY1} fill="none" stroke="white" strokeWidth={1.2} opacity={0.8}/>
+          {/* Övre målgård */}
+          <rect x={gbX1} y={paTopY1} width={gbX2-gbX1} height={gbTopY-paTopY1} fill="none" stroke="white" strokeWidth={1} opacity={0.8}/>
+          {/* Övre straffcirkel */}
+          <circle cx={midX} cy={py(22)} r={35} fill="none" stroke="white" strokeWidth={1} opacity={0.8}/>
+          {/* Nedre straffområde */}
+          <rect x={paX1} y={paBotY1} width={paX2-paX1} height={paBotY2-paBotY1} fill="none" stroke="white" strokeWidth={1.2} opacity={0.8}/>
+          {/* Nedre målgård */}
+          <rect x={gbX1} y={gbBotY} width={gbX2-gbX1} height={paBotY2-gbBotY} fill="none" stroke="white" strokeWidth={1} opacity={0.8}/>
         </>}
         {/* Zonlinjer */}
         {zoner.map((z,i)=>(
@@ -615,78 +637,54 @@ const Planskiss = ({skiss, org, skede}) => {
 // ─── ÖVNING EXPANDERBAR ───────────────────────────────────────────────
 const OvnKort = ({id, dark=false, minimal=false}) => {
   const [open, setOpen] = useState(false);
-  const [showSvff, setShowSvff] = useState(false);
   const o = OVN[id]; if (!o) return null;
   const sk = SKEDEN[o.skede];
-  const bg = dark ? "bg-white hover:bg-blue-50" : "bg-blue-50 hover:bg-blue-100";
+  const bg = dark ? "bg-white hover:bg-gray-50" : "bg-gray-50 hover:bg-gray-100";
 
-  // Minimal mode: used in CoachMode where content is already shown above
-  // Just show the SvFF link/diagram as a collapsible
+  // Minimal mode: collapsible SvFF-länk + diagram, used under Coach Mode content
   if (minimal) return (
-    <div className="mt-2 border border-gray-300 rounded-lg overflow-hidden">
-      <button onClick={()=>setOpen(v=>!v)} className="w-full flex items-center justify-between px-3 py-2 bg-gray-200 hover:bg-gray-300 transition-colors text-left">
-        <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">SvFF originalinstruktion · {id}</span>
-        <span className="text-gray-500 text-xs">{open?"▲ Dölj":"▼ Visa"}</span>
+    <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden">
+      <button onClick={()=>setOpen(v=>!v)} className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left">
+        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">SvFF originalinstruktion · {id}</span>
+        <span className="text-gray-400 text-xs">{open?"▲":"▼"}</span>
       </button>
       {open&&(
-        <div className="p-3 bg-gray-100 space-y-2">
-          {o.url&&<a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-50 text-gray-900 rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-100">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a>}
+        <div className="p-3 space-y-2 bg-white">
           <OvnDiagram id={id}/>
+          {o.url&&<a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium">Öppna på SvFF <ExternalLink className="h-3 w-3"/></a>}
         </div>
       )}
     </div>
   );
 
   return (
-    <div className="mt-2 border border-blue-300/30 rounded-xl overflow-hidden">
+    <div className="mt-2 border border-gray-200 rounded-xl overflow-hidden">
       <button onClick={()=>setOpen(v=>!v)} className={`w-full flex items-center justify-between px-3 py-2.5 ${bg} text-left transition-colors`}>
         <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="bg-amber-100 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-200 flex-shrink-0">SvFF {id}</span>
+          <span className="bg-amber-50 text-amber-700 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-200 flex-shrink-0">SvFF {id}</span>
           {sk&&<span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 ${sk.farg} ${sk.text}`}>{sk.icon} {sk.label}</span>}
-          <span className="text-xs font-bold text-gray-900 truncate">{o.namn}</span>
+          <span className="text-xs font-semibold text-gray-900 truncate">{o.namn}</span>
         </div>
-        <span className="text-amber-500 text-xs font-bold ml-2 flex-shrink-0">{open?"▲ Dölj":"▼ Visa"}</span>
+        <span className="text-amber-500 text-xs font-semibold ml-2 flex-shrink-0">{open?"▲ Dölj":"▼ Visa"}</span>
       </button>
       {open&&(
-        <div className={`${dark?"bg-gray-50":"bg-gray-100"} p-3 space-y-3 text-xs`}>
-          <div className="flex flex-wrap gap-1">
-            {o.principer.map(p=><span key={p} className="bg-blue-50 border border-blue-200 text-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded">{p}</span>)}
-          </div>
+        <div className="bg-gray-50 p-3 space-y-3 text-xs border-t border-gray-200">
+          {o.principer?.length>0&&<div className="flex flex-wrap gap-1">
+            {o.principer.map(p=><span key={p} className="bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">{p}</span>)}
+          </div>}
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-200 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-amber-600 mb-1">Vad</div><div className="text-gray-700">{o.vad}</div></div>
-            <div className="bg-gray-200 rounded-lg p-2.5"><div className="text-[10px] font-black uppercase text-amber-600 mb-1">Varför</div><div className="text-gray-700">{o.varfor}</div></div>
+            <div className="bg-white rounded-lg p-2.5 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Vad</div><div className="text-gray-700">{o.vad}</div></div>
+            <div className="bg-white rounded-lg p-2.5 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Varför</div><div className="text-gray-700">{o.varfor}</div></div>
           </div>
-          {o.org&&<div className="bg-gray-200 rounded-lg px-3 py-2"><span className="text-amber-600 font-black text-[10px] uppercase">Organisation: </span><span className="text-gray-700">{o.org}</span></div>}
+          {o.org&&<div className="bg-white rounded-lg px-3 py-2 border border-gray-100"><span className="text-amber-600 font-semibold text-[10px] uppercase">Organisation: </span><span className="text-gray-700">{o.org}</span></div>}
           <div className="grid gap-2 sm:grid-cols-2">
-            {o.hur?.length>0&&(
-              <div className="bg-gray-200 rounded-lg p-2.5">
-                <div className="text-[10px] font-black uppercase text-amber-600 mb-1.5">Hur</div>
-                <ul className="space-y-1.5">{o.hur.map((h,i)=><li key={i} className="flex gap-1.5 text-gray-700"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul>
-              </div>
-            )}
-            {o.steg?.length>0&&(
-              <div className="bg-gray-200 rounded-lg p-2.5">
-                <div className="text-[10px] font-black uppercase text-amber-600 mb-1.5">Genomförande</div>
-                <ol className="space-y-1.5">{o.steg.map((s,i)=><li key={i} className="flex gap-1.5 text-gray-700"><span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-[9px] font-black text-gray-900">{i+1}</span>{s}</li>)}</ol>
-              </div>
-            )}
+            {o.hur?.length>0&&<div className="bg-white rounded-lg p-2.5 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1.5">Hur</div><ul className="space-y-1.5">{o.hur.map((h,i)=><li key={i} className="flex gap-1.5 text-gray-700"><Target className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-blue-400"/>{h}</li>)}</ul></div>}
+            {o.steg?.length>0&&<div className="bg-white rounded-lg p-2.5 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1.5">Genomförande</div><ol className="space-y-1.5">{o.steg.map((s,i)=><li key={i} className="flex gap-1.5 text-gray-700"><span className="step-num">{i+1}</span>{s}</li>)}</ol></div>}
           </div>
-          {o.prog?.length>0&&(
-            <div className="bg-amber-50 rounded-lg p-2.5 ring-1 ring-amber-200">
-              <div className="text-[10px] font-black uppercase text-amber-600 mb-1">Progression</div>
-              {o.prog.map((p,i)=><div key={i} className="flex gap-1.5 text-amber-700 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}
-            </div>
-          )}
+          {o.prog?.length>0&&<div className="bg-amber-50 rounded-lg p-2.5 border border-amber-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Progression</div>{o.prog.map((p,i)=><div key={i} className="flex gap-1.5 text-amber-700 mt-1"><CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-amber-500"/>{p}</div>)}</div>}
+          {/* Diagram och SvFF-länk */}
           <OvnDiagram id={id}/>
-          {o.url&&(
-            <div className="border border-gray-300 rounded-lg overflow-hidden">
-              <button onClick={e=>{e.stopPropagation();setShowSvff(v=>!v)}} className="w-full flex items-center justify-between px-3 py-2 bg-gray-200 hover:bg-gray-300 transition-colors text-left">
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">SvFF originalinstruktion</span>
-                <span className="text-gray-500 text-xs">{showSvff?"▲ Dölj":"▼ Visa"}</span>
-              </button>
-              {showSvff&&<div className="p-3 bg-gray-100 space-y-2"><a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-blue-50 text-gray-900 rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-blue-100">Öppna på SvFF Övningsbanken <ExternalLink className="h-3.5 w-3.5"/></a><OvnDiagram id={id}/></div>}
-            </div>
-          )}
+          {o.url&&<a href={o.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 bg-white hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium">Öppna på SvFF Övningsbanken <ExternalLink className="h-3 w-3"/></a>}
         </div>
       )}
     </div>
@@ -836,24 +834,9 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                   {selOvn.steg?.length>0&&<div className="bg-gray-50 rounded-xl p-3 ring-1 ring-gray-100"><div className="text-[10px] font-black uppercase text-gray-500 mb-2">Steg</div><ol className="space-y-1.5">{selOvn.steg.map((s,i)=><li key={i} className="flex gap-2 text-sm text-gray-700"><span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-white text-[10px] font-black text-gray-900">{i+1}</span>{s}</li>)}</ol></div>}
                 </div>
                 {selOvn.prog?.length>0&&<div className="bg-amber-50 rounded-xl p-3 ring-1 ring-amber-200"><div className="text-[10px] font-black uppercase text-amber-700 mb-2">Progression</div>{selOvn.prog.map((p,i)=><p key={i} className="text-sm text-amber-900 mt-1">• {p}</p>)}</div>}
-                {/* SVG om manuell skiss finns, annars PDF-bild */}
-                {selOvn.skiss?.spel?.length > 0
-                  ? <Planskiss skiss={selOvn.skiss} org={selOvn.org} skede={selOvn.skede}/>
-                  : <OvnDiagram id={selOvn.id}/>}
+                <OvnDiagram id={selOvn.id}/>
                 <div className="flex gap-2 flex-wrap">
-                  {/* SvFF PDF-länk + bild bara om vi har egen SVG */}
-                  {selOvn.skiss?.spel?.length > 0 && selOvn.url && (
-                    <details className="w-full">
-                      <summary className="text-xs font-black text-gray-500 cursor-pointer hover:text-gray-600">SvFF originalinstruktion ▾</summary>
-                      <div className="mt-2 space-y-2">
-                        <a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-white text-gray-900 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-blue-50">Öppna SvFF <ExternalLink className="h-4 w-4"/></a>
-                        <OvnDiagram id={selOvn.id}/>
-                      </div>
-                    </details>
-                  )}
-                  {!(selOvn.skiss?.spel?.length > 0) && selOvn.url && (
-                    <a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-white text-gray-900 rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-blue-50">Öppna SvFF <ExternalLink className="h-4 w-4"/></a>
-                  )}
+                  {selOvn.url&&<a href={selOvn.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium"><ExternalLink className="h-4 w-4"/>Öppna på SvFF</a>}
                   {väljLabel&&<button onClick={()=>onVälj(selOvn.id)} className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2.5 text-sm font-bold"><Check className="h-4 w-4"/>Välj denna övning</button>}
                 </div>
               </div>
@@ -1115,6 +1098,10 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
           {/* ── Övningsinnehåll — full bredd ── */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
             <h2 className="text-xl font-bold text-gray-900 leading-snug">{part.namn}</h2>
+            {/* Diagram överst — direkt under titeln */}
+            {part.ovnId
+              ? <OvnDiagram id={part.ovnId}/>
+              : skiss&&<Planskiss skiss={skiss} org={org}/>}
             {(vad||varfor)&&<div className="grid grid-cols-2 gap-2">
               {vad&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Vad</div><p className="text-xs text-gray-700 leading-relaxed">{vad}</p></div>}
               {varfor&&<div className="bg-gray-50 rounded-xl p-3 border border-gray-100"><div className="text-[10px] font-semibold uppercase text-amber-600 mb-1">Varför</div><p className="text-xs text-gray-700 leading-relaxed">{varfor}</p></div>}
@@ -1128,16 +1115,9 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               {part.blå&&<div className="bg-blue-50 border border-blue-100 rounded-xl p-3"><div className="text-[10px] font-semibold text-blue-700 uppercase mb-1">🔵 Blå grupp</div><p className="text-xs text-blue-800 leading-relaxed">{part.blå}</p></div>}
               {part.vit&&<div className="bg-gray-50 border border-gray-200 rounded-xl p-3"><div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">⚪ Vit grupp</div><p className="text-xs text-gray-700 leading-relaxed">{part.vit}</p></div>}
             </div>}
-            {part.ovnId ? (()=>{
-              const ovn = OVN[part.ovnId];
-              const harSvg = ovn?.skiss?.spel?.length > 0;
-              return harSvg
-                ? <Planskiss skiss={ovn.skiss} org={ovn.org} skede={ovn.skede}/>
-                : <OvnDiagram id={part.ovnId}/>;
-            })() : skiss&&<Planskiss skiss={skiss} org={org}/>}
-            {part.ovnId && OVN[part.ovnId]?.skiss?.spel?.length > 0 && (
-              <OvnKort id={part.ovnId} dark minimal/>
-            )}
+            {part.ovnId
+              ? <OvnDiagram id={part.ovnId}/>
+              : skiss&&<Planskiss skiss={skiss} org={org}/>}
           </div>
             </>);
           })()}
