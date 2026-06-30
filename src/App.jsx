@@ -180,6 +180,14 @@ const STATUSAR = [
   {v:"skada",  l:"Skadad",  icon:"🩹",cls:"bg-amber-50 border-amber-300 text-amber-800"},
 ];
 
+const SPELAR_HUMOR = [
+  {id:'toppen',  emoji:'🤩', label:'Toppen'},
+  {id:'bra',     emoji:'😊', label:'Bra'},
+  {id:'okej',    emoji:'😐', label:'Okej'},
+  {id:'trott',   emoji:'😴', label:'Trött'},
+  {id:'slit',    emoji:'😓', label:'Slit'},
+];
+
 // ─── BLOCK PERIOD HELPER (baserat på kopplade events) ─────────────────
 const blockPeriod = (block, appState) => {
   const dates = block.trän
@@ -1140,7 +1148,7 @@ const RedigeraVy = ({block, tran, onSpara, onBack}) => {
 // ═══════════════════════════════════════════════════════════════════════
 // COACH MODE VIEW
 // ═══════════════════════════════════════════════════════════════════════
-const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart, readOnly=false, onHome, favs=[], onFavToggle}) => {
+const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart, readOnly=false, spelarMode=null, onHome, favs=[], onFavToggle}) => {
   const [partIdx, setPartIdx] = useState(0);
   const [run, setRun] = useState(false);
   const [secs, setSecs] = useState((tran.delar[0]?.tid||10)*60);
@@ -1197,7 +1205,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
           <img src={LOGO} alt="RIK" className="h-9 w-9 object-contain flex-shrink-0"/>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-amber-200">{readOnly?"📋 VISA TRÄNING":"🎯 COACH MODE"}</span>
+              <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-amber-200">{spelarMode?"⚽ MIN TRÄNING":readOnly?"📋 VISA TRÄNING":"🎯 COACH MODE"}</span>
               <span className="text-[10px] text-blue-200 font-semibold">{block.titel}</span>
               <span className="text-[10px] text-amber-500 font-bold">{block.vardeord}</span>
             </div>
@@ -1210,7 +1218,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
             {blaSpel.length>0&&<span className="text-xs bg-blue-600 px-2 py-1 rounded-full font-bold">🔵{blaSpel.length}</span>}
             {vitSpel.length>0&&<span className="text-xs bg-gray-500 px-2 py-1 rounded-full font-bold">⚪{vitSpel.length}</span>}
           </div>}
-          {!readOnly&&<>
+          {!readOnly&&!spelarMode&&<>
             <button onClick={()=>setShowOmstart(true)} className="flex items-center gap-1.5 bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-xl text-xs font-bold transition-colors"><RefreshCw className="h-3.5 w-3.5"/>Starta om</button>
             <button onClick={()=>setShowAvsluta(true)} className="flex items-center gap-1.5 bg-red-600 hover:bg-red-500 px-3 py-2 rounded-xl text-xs font-black transition-colors"><Flag className="h-3.5 w-3.5"/>Avsluta</button>
           </>}
@@ -1266,14 +1274,18 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               {part.rep&&<span className="text-[10px] bg-amber-50 text-amber-600 px-2 py-1 rounded-lg border border-amber-200 font-bold">REP</span>}
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="rik-timer text-2xl font-black text-amber-600 w-[68px] text-right tabular-nums">{fmt(secs)}</span>
-              <button onClick={()=>setRun(v=>!v)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 py-2 text-sm font-semibold min-w-[76px] justify-center">
-                {run?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{run?"Pausa":"Start"}
-              </button>
-              <button onClick={resetTimer} className="bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-xl p-2 border border-gray-200" title="Nollställ">
-                <RotateCcw className="h-4 w-4"/>
-              </button>
-              {part.ovnId&&(
+              {spelarMode ? (
+                <span className="rik-timer text-2xl font-black text-gray-400 w-[68px] text-right tabular-nums">{part.tid}'</span>
+              ) : (<>
+                <span className="rik-timer text-2xl font-black text-amber-600 w-[68px] text-right tabular-nums">{fmt(secs)}</span>
+                <button onClick={()=>setRun(v=>!v)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-3 py-2 text-sm font-semibold min-w-[76px] justify-center">
+                  {run?<Pause className="h-4 w-4"/>:<Play className="h-4 w-4"/>}{run?"Pausa":"Start"}
+                </button>
+                <button onClick={resetTimer} className="bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-xl p-2 border border-gray-200" title="Nollställ">
+                  <RotateCcw className="h-4 w-4"/>
+                </button>
+              </>)}
+              {part.ovnId&&!spelarMode&&(
                 <button onClick={()=>{const n=favs.includes(part.ovnId)?favs.filter(x=>x!==part.ovnId):[...favs,part.ovnId];onFavToggle(n);}}
                   className={`h-9 w-9 flex items-center justify-center rounded-xl border transition-colors ${favs.includes(part.ovnId)?"border-amber-300 bg-amber-50 text-amber-500":"border-gray-200 bg-white text-gray-300 hover:text-amber-400"}`}>
                   <Star className={`h-4 w-4 ${favs.includes(part.ovnId)?"fill-amber-400":""}`}/>
@@ -1311,7 +1323,53 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
             <div className="bg-gray-200/30 border border-gray-300 rounded-xl p-3"><div className="text-[10px] font-black text-gray-600 uppercase tracking-wide mb-1.5">⚪ Vit – Ledarbeteende</div><p className="text-xs text-gray-700 leading-relaxed">{tran.ledVit}</p></div>
           </div>
 
-          {/* Närvaro */}
+          {/* Närvaro — full version för coach, kompakt egen-väljare för spelare */}
+          {spelarMode ? (
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
+              <div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Vilken grupp är du i?</div>
+                <div className="flex gap-2">
+                  {STATUSAR.map(s=>{
+                    const mySt = narv[spelarMode.spelId]?.status;
+                    return (
+                      <button key={s.v} onClick={()=>updateNarv(spelarMode.spelId,{status:s.v})}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 text-sm font-bold transition-colors ${mySt===s.v?s.cls+" border-current":"bg-gray-50 border-transparent text-gray-400 hover:bg-gray-100"}`}>
+                        {s.icon} {s.l}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="border-t border-gray-100 pt-4">
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Din ansträngning just nu: <span className="text-amber-700">{spelarMode.skattning.rpe}/10</span>
+                </div>
+                <input type="range" min="1" max="10" value={spelarMode.skattning.rpe}
+                  onChange={e=>spelarMode.onSkattningChange({...spelarMode.skattning,rpe:+e.target.value})}
+                  className="w-full accent-amber-500"/>
+                <div className="flex justify-between text-[10px] text-gray-400 mt-0.5 mb-3">
+                  <span>1 Lätt</span><span>5 Medel</span><span>10 Maximal</span>
+                </div>
+                <div className="flex gap-2 justify-between mb-3">
+                  {SPELAR_HUMOR.map(h=>(
+                    <button key={h.id} onClick={()=>spelarMode.onSkattningChange({...spelarMode.skattning,humor:h.id})}
+                      className={`flex-1 flex flex-col items-center py-2 rounded-xl border-2 transition-colors ${spelarMode.skattning.humor===h.id?'border-amber-400 bg-amber-50':'border-transparent bg-gray-50'}`}>
+                      <span className="text-lg">{h.emoji}</span>
+                      <span className="text-[9px] text-gray-500 mt-0.5">{h.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <textarea value={spelarMode.skattning.kommentar||''}
+                  onChange={e=>spelarMode.onSkattningChange({...spelarMode.skattning,kommentar:e.target.value})}
+                  placeholder="Kommentar om träningen (valfritt)…" rows={2}
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none mb-2"/>
+                <button onClick={spelarMode.onSpara} disabled={spelarMode.saving}
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-50">
+                  {spelarMode.saving?'Sparar…':spelarMode.saved?'✓ Sparat':'Spara min skattning'}
+                </button>
+              </div>
+            </div>
+          ) : (
           <div className="bg-gray-100 rounded-2xl overflow-hidden">
             <button onClick={()=>setShowNarv(v=>!v)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-200 transition-colors text-left">
               <div className="flex items-center gap-3">
@@ -1377,6 +1435,7 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
@@ -1386,10 +1445,11 @@ const CoachMode = ({tran, block, tranState, onUpdateState, onAvsluta, onOmstart,
           className="flex items-center gap-1.5 bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 rounded-xl text-sm font-bold text-gray-900">
           <ChevronLeft className="h-4 w-4"/>Föreg.
         </button>
-        <button onClick={()=>setDoneParts(p=>({...p,[partIdx]:!p[partIdx]}))}
+        {!spelarMode&&<button onClick={()=>setDoneParts(p=>({...p,[partIdx]:!p[partIdx]}))}
           className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-black shadow transition-colors ${doneParts[partIdx]?"bg-emerald-500 hover:bg-emerald-600 text-white":"bg-amber-500 hover:bg-amber-600 text-white"}`}>
           <CheckCircle2 className="h-4 w-4"/>{doneParts[partIdx]?"Klar ✓":"Markera klar"}
-        </button>
+        </button>}
+        {spelarMode&&<span className="text-xs text-gray-400 font-medium">{partIdx+1} / {tran.delar.length}</span>}
         <button onClick={()=>setPartIdx(i=>Math.min(tran.delar.length-1,i+1))} disabled={partIdx===tran.delar.length-1}
           className="flex items-center gap-1.5 bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 rounded-xl text-sm font-bold text-gray-900">
           Nästa<ChevronRight className="h-4 w-4"/>
@@ -2394,12 +2454,16 @@ const AdminVy = ({onBack, currentUser}) => {
 // ═══════════════════════════════════════════════════════════════════════
 // SPELARVY — Read-only + självskattning
 // ═══════════════════════════════════════════════════════════════════════
-const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, kalevent=[], onLogout}) => {
+const SpelarVy = ({currentUser, blocks, mvBlocks, appState, setAppState, trupp, kalevent=[], onLogout}) => {
   const [tab, setTab]     = useState('traning');
   const [skattningar, setSkattningar] = useState([]);
   const [editSkatt, setEditSkatt]     = useState(null); // {blockId, tranNr}
   const [draft, setDraft]             = useState({rpe:5,humor:'bra',kommentar:''});
   const [saving, setSaving]           = useState(false);
+  const [openTraning, setOpenTraning] = useState(null); // {block, tran}
+  const [liveDraft, setLiveDraft]     = useState({rpe:5,humor:'bra',kommentar:''});
+  const [liveSaving, setLiveSaving]   = useState(false);
+  const [liveSaved, setLiveSaved]     = useState(false);
 
   const spelId = currentUser.spelare_id || currentUser.id;
   const sp     = trupp.find(s=>String(s.id)===String(spelId));
@@ -2457,13 +2521,56 @@ const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, kalevent=[], 
     setEditSkatt(null);
   };
 
-  const HUMOR = [
-    {id:'toppen',  emoji:'🤩', label:'Toppen'},
-    {id:'bra',     emoji:'😊', label:'Bra'},
-    {id:'okej',    emoji:'😐', label:'Okej'},
-    {id:'trott',   emoji:'😴', label:'Trött'},
-    {id:'slit',    emoji:'😓', label:'Slit'},
-  ];
+  const HUMOR = SPELAR_HUMOR;
+
+  // ── Öppen träning — visar CoachMode i spelarMode ──────────────────────
+  const handleOpenTraning = (block, tran) => {
+    const key = `${block.id}-${tran.nr}`;
+    const existing = skattningar.find(s=>s.block_id===String(block.id)&&s.tran_nr===tran.nr);
+    setLiveDraft({rpe:existing?.rpe||5, humor:existing?.humor||'bra', kommentar:existing?.kommentar||''});
+    setLiveSaved(false);
+    setOpenTraning({block,tran});
+  };
+
+  const handleSparaLive = async () => {
+    if (!openTraning) return;
+    setLiveSaving(true);
+    await supaUpsertSjalvskattning({
+      user_id: currentUser.id,
+      block_id: String(openTraning.block.id),
+      tran_nr:  openTraning.tran.nr,
+      rpe:       liveDraft.rpe,
+      humor:     liveDraft.humor,
+      kommentar: liveDraft.kommentar || null,
+    });
+    const updated = await supaGetSjalvskattning(currentUser.id);
+    setSkattningar(updated);
+    setLiveSaving(false);
+    setLiveSaved(true);
+    setTimeout(()=>setLiveSaved(false), 2500);
+  };
+
+  if (openTraning) {
+    const key = `${openTraning.block.id}-${openTraning.tran.nr}`;
+    return (
+      <CoachMode
+        tran={openTraning.tran}
+        block={openTraning.block}
+        tranState={appState[key]||{}}
+        onUpdateState={(upd)=>setAppState&&setAppState({...appState,[key]:{...appState[key],...upd}})}
+        spelarMode={{
+          spelId,
+          namn: sp?.namn||currentUser.namn,
+          skattning: liveDraft,
+          onSkattningChange: setLiveDraft,
+          onSpara: handleSparaLive,
+          saving: liveSaving,
+          saved: liveSaved,
+        }}
+        onHome={()=>setOpenTraning(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -2652,6 +2759,10 @@ const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, kalevent=[], 
                       </div>
                     )}
                   </div>
+                  <button onClick={()=>handleOpenTraning(block,tran)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 border-t border-gray-50 text-xs font-semibold text-amber-600 hover:bg-amber-50 transition-colors">
+                    <Play className="h-3.5 w-3.5"/>Visa träning
+                  </button>
                 </div>
               );
             })}
@@ -3390,7 +3501,8 @@ export default function App() {
   if (currentUser.roll==='spelare') return (
     <SpelarVy
       currentUser={currentUser} blocks={blocks} mvBlocks={mvBlocks}
-      appState={appState} trupp={trupp} kalevent={kalevent} onLogout={handleLogout}/>
+      appState={appState} setAppState={updateAppState}
+      trupp={trupp} kalevent={kalevent} onLogout={handleLogout}/>
   );
 
   // ── Admin (bara coacher) ──
