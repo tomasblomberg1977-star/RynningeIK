@@ -813,20 +813,39 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
   const [showEdit,setShowEdit] = useState(false);
   const [overrides,setOverrides] = useState(lsGetOverrides);
   const [editDraft,setEditDraft] = useState(null); // { typ, skede, kategori, principer[] }
+  const [savingOverride, setSavingOverride] = useState(false);
+
+  // Hämta senaste overrides från Supabase vid start (Supabase är källan, localStorage är cache)
+  useEffect(()=>{
+    if (!SUPA_OK) return;
+    supaGet("rik_kv","ovn_overrides").then(remote=>{
+      if (remote) { setOverrides(remote); lsSetOverrides(remote); }
+    });
+  },[]);
 
   // Merge overrides into OVN for display
   const allOvn = useMemo(()=>Object.values(OVN).map(o=>overrides[o.id]?{...o,...overrides[o.id]}:o),[overrides]);
 
-  const saveOverride = (id, draft) => {
+  const saveOverride = async (id, draft) => {
     const next = {...overrides, [id]: draft};
     setOverrides(next);
     lsSetOverrides(next);
+    if (SUPA_OK) {
+      setSavingOverride(true);
+      await supaSet("rik_kv","ovn_overrides",next);
+      setSavingOverride(false);
+    }
   };
-  const removeOverride = (id) => {
+  const removeOverride = async (id) => {
     const next = {...overrides};
     delete next[id];
     setOverrides(next);
     lsSetOverrides(next);
+    if (SUPA_OK) {
+      setSavingOverride(true);
+      await supaSet("rik_kv","ovn_overrides",next);
+      setSavingOverride(false);
+    }
   };
 
   const filtered = useMemo(()=>{
@@ -1002,12 +1021,12 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                       </div>
                     </div>
                     <div className="flex gap-2 pt-1">
-                      <button onClick={()=>{saveOverride(selOvn.id,editDraft);setShowEdit(false);setEditDraft(null);}}
-                        className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-bold">
-                        <Check className="h-3.5 w-3.5"/>Spara
+                      <button onClick={async()=>{await saveOverride(selOvn.id,editDraft);setShowEdit(false);setEditDraft(null);}} disabled={savingOverride}
+                        className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50">
+                        <Check className="h-3.5 w-3.5"/>{savingOverride?"Sparar…":"Spara"}
                       </button>
-                      {overrides[selOvn.id]&&<button onClick={()=>{removeOverride(selOvn.id);setShowEdit(false);setEditDraft(null);}}
-                        className="flex items-center gap-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-2 text-xs font-bold">
+                      {overrides[selOvn.id]&&<button onClick={async()=>{await removeOverride(selOvn.id);setShowEdit(false);setEditDraft(null);}} disabled={savingOverride}
+                        className="flex items-center gap-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50">
                         Återställ original
                       </button>}
                       <button onClick={()=>{setShowEdit(false);setEditDraft(null);}}
