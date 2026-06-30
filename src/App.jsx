@@ -3064,11 +3064,10 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
   const [dragOverIdx, setDragOverIdx] = useState(null);
 
   const getTranState = (bId,tNr) => appState[tranKey(bId,tNr)] || {};
-  const setEvent = (bId,tNr,eid) => { const k=tranKey(bId,tNr); setAppState(p=>({...p,[k]:{...p[k],event:eid}})); };
+  const setEvent = (bId,tNr,eid) => { const k=tranKey(bId,tNr); setAppState({...appState,[k]:{...appState[k],event:eid}}); };
   const setEventDatum = (bId,tNr,datumTid) => {
     const k=tranKey(bId,tNr);
-    if (!datumTid) { setAppState(p=>({...p,[k]:{...p[k],eventDatum:null}})); return; }
-    setAppState(p=>({...p,[k]:{...p[k],eventDatum:datumTid}}));
+    setAppState({...appState,[k]:{...appState[k],eventDatum:datumTid||null}});
   };
   const isAvslutad = (bId,tNr) => !!getTranState(bId,tNr).avslutad;
 
@@ -3237,7 +3236,7 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                 {/* Actions */}
                 <div className="flex items-center gap-1 px-2 flex-shrink-0">
                   {aktiveraBlocks.length > 1 && (
-                    <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){if(lagTyp==="mv"){setMvBlocks(prev=>prev.filter(b=>b.id!==block.id));}else{setBlocks(prev=>prev.filter(b=>b.id!==block.id));}}}}
+                    <button onClick={e=>{e.stopPropagation();if(window.confirm(`Ta bort "${block.titel}"?\nNärvaro och betyg för detta block raderas.`)){if(lagTyp==="mv"){setMvBlocks(mvBlocks.filter(b=>b.id!==block.id));}else{setBlocks(blocks.filter(b=>b.id!==block.id));}}}}
                       className="p-1.5 rounded-lg hover:bg-red-500/40 transition-colors text-gray-900/70 hover:text-gray-900" title="Ta bort block">
                       <X className="h-4 w-4"/>
                     </button>
