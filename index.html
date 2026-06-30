@@ -21,10 +21,14 @@
 
     <!-- Android / Chrome standalone -->
     <meta name="mobile-web-app-capable" content="yes" />
+
+    <style>
+      /* Safe-area padding so content doesn't sit under the iOS status bar in standalone mode */
+      body { padding-top: env(safe-area-inset-top); }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-
