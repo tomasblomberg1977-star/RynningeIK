@@ -188,13 +188,12 @@ const SPELAR_HUMOR = [
   {id:'slit',    emoji:'😓', label:'Slit'},
 ];
 
-// ─── BLOCK PERIOD HELPER (baserat på kopplade events) ─────────────────
+// ─── BLOCK PERIOD HELPER (baserat på kopplade datum) ─────────────────
 const blockPeriod = (block, appState) => {
   const dates = block.trän
-    .map(t => appState[tranKey(block.id, t.nr)]?.event)
+    .map(t => appState[tranKey(block.id, t.nr)]?.eventDatum)
     .filter(Boolean)
-    .map(eid => KALEVENT.find(e => e.id === eid)?.datum)
-    .filter(Boolean)
+    .map(dt => dt.slice(0,10))
     .sort();
   if (!dates.length) return block.period || "Ej schemalagd";
   const fmt2 = d => new Date(d+"T12:00:00").toLocaleDateString("sv-SE",{day:"numeric",month:"short"});
@@ -2241,17 +2240,20 @@ const AdminVy = ({onBack, currentUser}) => {
     }
   };
 
-  const addSpelareFromTrupp = async () => {
+  const uppdateraSpelarlista = async () => {
     setSaving(true);
-    let count = 0;
+    let added = 0, updated = 0;
     for (const sp of TRUPP) {
       const existing = users.find(u=>u.id===String(sp.id));
       if (!existing) {
         await supaUpsertUser({ id: String(sp.id), namn: sp.namn, roll: 'spelare', aktiv: true });
-        count++;
+        added++;
+      } else if (existing.namn !== sp.namn) {
+        await supaUpsertUser({ ...existing, namn: sp.namn });
+        updated++;
       }
     }
-    setMsg(`✓ Lade till ${count} spelare`);
+    setMsg(`✓ ${added} nya, ${updated} uppdaterade`);
     setTimeout(()=>setMsg(''),3000);
     setSaving(false);
     reload();
@@ -2296,9 +2298,9 @@ const AdminVy = ({onBack, currentUser}) => {
               className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-3 py-2 rounded-xl">
               + Importera ledare (JSON)
             </button>
-            <button onClick={addSpelareFromTrupp} disabled={saving}
-              className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl disabled:opacity-50">
-              + Lägg till alla spelare
+            <button onClick={uppdateraSpelarlista} disabled={saving}
+              className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl disabled:opacity-50">
+              <RefreshCw className="h-3.5 w-3.5"/>Uppdatera spelarlista
             </button>
           </div>
         </div>
@@ -2487,13 +2489,15 @@ const SpelarVy = ({currentUser, blocks, mvBlocks, appState, setAppState, trupp, 
   // Lagets alla planerade träningar (inte ännu genomförda) — sorterade på datum
   const lagetsTräningar = useMemo(()=>{
     const all = [...(blocks||[]),...(mvBlocks||[])];
-    const today = new Date().toISOString().slice(0,10);
     const out = all.flatMap(block=>
       (block.trän||[]).map(tran=>{
         const ts = appState[`${block.id}-${tran.nr}`]||{};
-        const ev = ts.event ? kalevent.find(e=>e.id===ts.event) : null;
+        const ev = ts.eventDatum ? {
+          datum: ts.eventDatum.slice(0,10),
+          label: new Date(ts.eventDatum).toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + new Date(ts.eventDatum).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})
+        } : null;
         return {block,tran,ts,ev};
-      }).filter(({ts,ev})=>!ts.avslutad)
+      }).filter(({ts})=>!ts.avslutad)
     );
     // Sortera: schemalagda (med datum) först kronologiskt, sen oschemalagda
     return out.sort((a,b)=>{
@@ -3042,6 +3046,11 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
 
   const getTranState = (bId,tNr) => appState[tranKey(bId,tNr)] || {};
   const setEvent = (bId,tNr,eid) => { const k=tranKey(bId,tNr); setAppState(p=>({...p,[k]:{...p[k],event:eid}})); };
+  const setEventDatum = (bId,tNr,datumTid) => {
+    const k=tranKey(bId,tNr);
+    if (!datumTid) { setAppState(p=>({...p,[k]:{...p[k],eventDatum:null}})); return; }
+    setAppState(p=>({...p,[k]:{...p[k],eventDatum:datumTid}}));
+  };
   const isAvslutad = (bId,tNr) => !!getTranState(bId,tNr).avslutad;
 
   const aktiveraBlocks = lagTyp==="mv" ? mvBlocks : blocks;
@@ -3099,12 +3108,13 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                     ☰ Meny
                   </button>
                   {menuOpen&&(
-                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg py-1.5 z-50 min-w-[160px]">
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-2xl shadow-lg py-1.5 z-50 min-w-[180px]">
                       {[
                         [onOvningsbank, <><BookOpen className="h-3.5 w-3.5"/>Övningar</>],
                         [onVarderingar, <>⭐ Värderingar</>],
                         [onArbetssatt,  <>🧩 Arbetssätt</>],
                         [onStatistik,   <>📊 Statistik</>],
+                        ...(currentUser?.roll==='coach'||currentUser?.roll==='tranare' ? [[onAdmin, <>👤 Användaradmin</>]] : []),
                       ].map(([fn,label],i)=>(
                         <button key={i} onClick={()=>{fn();setMenuOpen(false);}}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 text-left">
@@ -3119,14 +3129,6 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
             <button onClick={()=>setVisaAvslutade(v=>!v)} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl border transition-colors ${visaAvslutade?"bg-amber-500 text-white border-amber-500":"bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-100"}`}>
               <Eye className="h-3.5 w-3.5"/>{visaAvslutade?"Dölj avslutade":"Visa avslutade"}
             </button>
-            <button onClick={onRefreshTrupp} className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 hover:bg-gray-100 text-gray-900 border border-gray-200 px-2.5 py-2 rounded-xl transition-colors" title="Uppdatera spelarlistan från laget.se">
-              <RefreshCw className="h-3.5 w-3.5"/>
-            </button>
-            {(currentUser?.roll==='coach'||currentUser?.roll==='tranare')&&(
-              <button onClick={onAdmin} className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-2.5 py-2 rounded-xl" title="Användaradmin">
-                👤
-              </button>
-            )}
             <button onClick={onLogout} className="text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 px-2.5 py-2 rounded-xl" title="Logga ut">
               ↩
             </button>
@@ -3235,7 +3237,9 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                   {synliga.map(tran=>{
                     const ts=getTranState(block.id,tran.nr);
                     const avslutad=!!ts.avslutad;
-                    const ev=KALEVENT.find(e=>e.id===ts.event);
+                    const ev = ts.eventDatum ? {
+                      label: new Date(ts.eventDatum).toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + new Date(ts.eventDatum).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})
+                    } : null;
                     const blaAntal=TRUPP.filter(s=>ts.narvaro?.[s.id]?.status==="bla").length;
                     const vitAntal=TRUPP.filter(s=>ts.narvaro?.[s.id]?.status==="vit").length;
                     const harNarv=blaAntal+vitAntal>0;
@@ -3283,18 +3287,18 @@ const PlaneringsVy = ({blocks, appState, setAppState, setBlocks, onStartCoach, o
                             {tran.principer.map(p=><span key={p} className="text-[10px] bg-gray-100 text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full">{p}</span>)}
                           </div>
                         )}
-                        {/* Kalender */}
+                        {/* Datum & tid */}
                         {!avslutad&&(
                           <div className="px-3 pb-3 flex items-center gap-2">
                             <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0"/>
-                            <select value={ts.event||""} onChange={e=>setEvent(block.id,tran.nr,e.target.value)}
-                              className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-400 flex-1 min-w-0">
-                              <option value="">Koppla till planerad träning…</option>
-                              {kalevent
-                                .filter(e => e.datum >= new Date().toISOString().slice(0,10))
-                                .slice(0, 9)
-                                .map(e=><option key={e.id} value={e.id}>{e.label}</option>)}
-                            </select>
+                            <input type="datetime-local" value={ts.eventDatum||""}
+                              onChange={e=>setEventDatum(block.id,tran.nr,e.target.value)}
+                              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-400 flex-1 min-w-0"/>
+                            {ts.eventDatum&&(
+                              <button onClick={()=>setEventDatum(block.id,tran.nr,null)} className="text-gray-300 hover:text-red-500 flex-shrink-0" title="Ta bort datum">
+                                <X className="h-3.5 w-3.5"/>
+                              </button>
+                            )}
                           </div>
                         )}
                         <div className="px-3 pb-2 flex flex-wrap gap-1">
@@ -3537,51 +3541,8 @@ export default function App() {
     />
   );
   const handleRefreshTrupp = () => {
-    const input = window.prompt(
-      "Klistra in träningsdatum från laget.se (ett datum per rad, format ÅÅÅÅ-MM-DD HH:MM):\n\nExempel:\n2026-08-18 19:00\n2026-08-20 18:30\n2026-08-21 19:30\n\nLämna tomt för att bara återställa spelarlistan.",
-      ""
-    );
-    if (input === null) return; // Avbryt
-
-    let uppdateradKalendern = false;
-
-    // Parse dates if provided
-    const lines = input.split("\n").map(l => l.trim()).filter(Boolean);
-    if (lines.length > 0) {
-      const DAGNAMN = ["Söndag","Måndag","Tisdag","Onsdag","Torsdag","Fredag","Lördag"];
-      const MÅNNAMN = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
-      const parsed = [];
-      for (const line of lines) {
-        // Accept "YYYY-MM-DD HH:MM" or "YYYY-MM-DD"
-        const m = line.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?/);
-        if (!m) continue;
-        const datum = m[1];
-        const tid = m[2] || "00:00";
-        const d = new Date(datum);
-        const dag = DAGNAMN[d.getDay()];
-        const måndag = d.getDate();
-        const mån = MÅNNAMN[d.getMonth()];
-        const label = `${dag.slice(0,3)} ${måndag} ${mån} · ${tid}`;
-        parsed.push({ id: `e_${datum}_${tid.replace(":","")}_${Math.random().toString(36).slice(2,6)}`, datum, dag, tid, label });
-      }
-      if (parsed.length > 0) {
-        // Save to Supabase via rik_kv
-        syncAll(appState, blocks, mvBlocks, parsed);
-        setKalevent(parsed);
-        lsSet("_kalevent", parsed);
-        uppdateradKalendern = true;
-      }
-    }
-
-    // Always reset trupp
     setTrupp(TRUPP);
     lsSet("_trupp", TRUPP);
-
-    if (uppdateradKalendern) {
-      alert(`✓ Spelarlistan återställd\n✓ Kalender uppdaterad med ${lines.length} datum`);
-    } else {
-      alert("✓ Spelarlistan återställd");
-    }
   };
 
   return (
