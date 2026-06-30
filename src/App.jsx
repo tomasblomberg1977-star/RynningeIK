@@ -2197,6 +2197,23 @@ const AdminVy = ({onBack, currentUser}) => {
     reload();
   };
 
+  const [showAddTranare, setShowAddTranare] = useState(false);
+  const [newTranareNamn, setNewTranareNamn] = useState('');
+  const [newTranareRoll, setNewTranareRoll] = useState('tranare');
+
+  const addTranareManuellt = async () => {
+    if (!newTranareNamn.trim()) return;
+    setSaving(true);
+    const id = `tranare_${newTranareNamn.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${Date.now().toString(36)}`;
+    await supaUpsertUser({ id, namn: newTranareNamn.trim(), roll: newTranareRoll, aktiv: true });
+    setMsg(`✓ ${newTranareNamn.trim()} tillagd`);
+    setTimeout(()=>setMsg(''),3000);
+    setSaving(false);
+    setNewTranareNamn('');
+    setShowAddTranare(false);
+    reload();
+  };
+
   const ROLL_LABEL = {spelare:'Spelare',coach:'Coach',tranare:'Tränare'};
   const ROLL_COLOR = {spelare:'bg-blue-100 text-blue-800',coach:'bg-amber-100 text-amber-800',tranare:'bg-green-100 text-green-800'};
 
@@ -2209,11 +2226,15 @@ const AdminVy = ({onBack, currentUser}) => {
             <span className="text-gray-400">·</span>
             <span className="font-bold text-gray-900 text-sm">Användaradmin</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {msg&&<span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl">{msg}</span>}
-            <button onClick={()=>setShowImport(v=>!v)}
+            <button onClick={()=>{setShowAddTranare(v=>!v);setShowImport(false);}}
               className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-3 py-2 rounded-xl">
-              + Importera ledare
+              + Lägg till tränare
+            </button>
+            <button onClick={()=>{setShowImport(v=>!v);setShowAddTranare(false);}}
+              className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-3 py-2 rounded-xl">
+              + Importera ledare (JSON)
             </button>
             <button onClick={addSpelareFromTrupp} disabled={saving}
               className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-xl disabled:opacity-50">
@@ -2224,6 +2245,42 @@ const AdminVy = ({onBack, currentUser}) => {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
+        {/* Lägg till tränare manuellt */}
+        {showAddTranare&&(
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+            <div className="text-sm font-bold text-gray-900">Lägg till tränare / coach</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Namn</label>
+                <input value={newTranareNamn} onChange={e=>setNewTranareNamn(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&addTranareManuellt()}
+                  placeholder="För- och efternamn"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  autoFocus/>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Roll</label>
+                <select value={newTranareRoll} onChange={e=>setNewTranareRoll(e.target.value)}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400">
+                  <option value="tranare">Tränare</option>
+                  <option value="coach">Coach</option>
+                </select>
+              </div>
+            </div>
+            <div className="text-xs text-gray-400">PIN sätts i nästa steg — efter att personen lagts till klickar du "Redigera" i listan nedan.</div>
+            <div className="flex gap-2">
+              <button onClick={addTranareManuellt} disabled={saving||!newTranareNamn.trim()}
+                className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-50">
+                <Check className="h-3.5 w-3.5"/>{saving?'Lägger till…':'Lägg till'}
+              </button>
+              <button onClick={()=>{setShowAddTranare(false);setNewTranareNamn('');}}
+                className="text-xs text-gray-500 hover:text-gray-700 px-3 py-2">
+                Avbryt
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Import laget.se JSON */}
         {showImport&&(
           <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
