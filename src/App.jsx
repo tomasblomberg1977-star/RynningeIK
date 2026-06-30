@@ -2394,7 +2394,7 @@ const AdminVy = ({onBack, currentUser}) => {
 // ═══════════════════════════════════════════════════════════════════════
 // SPELARVY — Read-only + självskattning
 // ═══════════════════════════════════════════════════════════════════════
-const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, onLogout}) => {
+const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, kalevent=[], onLogout}) => {
   const [tab, setTab]     = useState('traning');
   const [skattningar, setSkattningar] = useState([]);
   const [editSkatt, setEditSkatt]     = useState(null); // {blockId, tranNr}
@@ -2419,6 +2419,26 @@ const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, onLogout}) =>
       }).map(tran=>({block,tran,ts:appState[`${block.id}-${tran.nr}`]||{}}))
     ).sort((a,b)=>(b.ts.avslutadDatum||'').localeCompare(a.ts.avslutadDatum||''));
   },[blocks,mvBlocks,appState,spelId]);
+
+  // Lagets alla planerade träningar (inte ännu genomförda) — sorterade på datum
+  const lagetsTräningar = useMemo(()=>{
+    const all = [...(blocks||[]),...(mvBlocks||[])];
+    const today = new Date().toISOString().slice(0,10);
+    const out = all.flatMap(block=>
+      (block.trän||[]).map(tran=>{
+        const ts = appState[`${block.id}-${tran.nr}`]||{};
+        const ev = ts.event ? kalevent.find(e=>e.id===ts.event) : null;
+        return {block,tran,ts,ev};
+      }).filter(({ts,ev})=>!ts.avslutad)
+    );
+    // Sortera: schemalagda (med datum) först kronologiskt, sen oschemalagda
+    return out.sort((a,b)=>{
+      if (a.ev && b.ev) return a.ev.datum.localeCompare(b.ev.datum);
+      if (a.ev) return -1;
+      if (b.ev) return 1;
+      return 0;
+    });
+  },[blocks,mvBlocks,appState,kalevent]);
 
   const sparaSkattning = async () => {
     if (!editSkatt) return;
@@ -2466,7 +2486,7 @@ const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, onLogout}) =>
       {/* Tabs */}
       <div className="max-w-2xl mx-auto px-4 pt-4">
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-4">
-          {[['traning','Mina träningar'],['statistik','Min statistik']].map(([v,l])=>(
+          {[['traning','Mina träningar'],['lag','Lagets träningar'],['statistik','Min statistik']].map(([v,l])=>(
             <button key={v} onClick={()=>setTab(v)}
               className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${tab===v?'bg-white shadow-sm text-gray-900':'text-gray-500'}`}>{l}</button>
           ))}
@@ -2584,6 +2604,54 @@ const SpelarVy = ({currentUser, blocks, mvBlocks, appState, trupp, onLogout}) =>
                       </div>
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Lagets träningar ── */}
+        {tab==='lag'&&(
+          <div className="space-y-3 pb-8">
+            {lagetsTräningar.length===0&&(
+              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
+                <div className="text-4xl mb-3">📅</div>
+                <div className="font-semibold text-gray-600">Inga planerade träningar</div>
+                <div className="text-sm mt-1">Kommande träningar visas här</div>
+              </div>
+            )}
+            {lagetsTräningar.map(({block,tran,ts,ev})=>{
+              const key = `${block.id}-${tran.nr}`;
+              const skeden = [...new Set(tran.delar.filter(d=>d.ovnId).map(d=>getOvn(d.ovnId)?.skede).filter(Boolean))];
+              return (
+                <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">{block.titel} · Träning {tran.nr}</div>
+                      {ev ? (
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap">
+                          📅 {ev.label}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full flex-shrink-0">
+                          Ej schemalagd
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm font-bold text-gray-900">{tran.syfte}</div>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-[10px] text-gray-400">{tran.delar.reduce((s,d)=>s+d.tid,0)} min · {tran.delar.length} delar</span>
+                      {skeden.map(s=>{
+                        const sk=SKEDEN[s];
+                        return <span key={s} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sk?.farg||'bg-gray-100'} ${sk?.text||'text-gray-700'}`}>{sk?.icon} {sk?.label}</span>;
+                      })}
+                    </div>
+                    {tran.principer?.length>0&&(
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {tran.principer.slice(0,4).map(p=><span key={p} className="text-[10px] bg-gray-50 text-gray-600 border border-gray-200 px-1.5 py-0.5 rounded">{p}</span>)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -3322,7 +3390,7 @@ export default function App() {
   if (currentUser.roll==='spelare') return (
     <SpelarVy
       currentUser={currentUser} blocks={blocks} mvBlocks={mvBlocks}
-      appState={appState} trupp={trupp} onLogout={handleLogout}/>
+      appState={appState} trupp={trupp} kalevent={kalevent} onLogout={handleLogout}/>
   );
 
   // ── Admin (bara coacher) ──
