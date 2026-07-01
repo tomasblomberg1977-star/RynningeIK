@@ -817,11 +817,20 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
   const [editDraft,setEditDraft] = useState(null); // { typ, skede, kategori, principer[] }
   const [savingOverride, setSavingOverride] = useState(false);
 
-  // Hämta senaste overrides från Supabase vid start (Supabase är källan, localStorage är cache)
+  // Hämta overrides: jämför timestamp för att alltid ta den nyaste källan.
   useEffect(()=>{
     if (!SUPA_OK) return;
+    const local = lsGetOverrides();
+    const localTs = local._ts || 0;
     supaGet("rik_kv","ovn_overrides").then(remote=>{
-      if (remote) { setOverrides(remote); lsSetOverrides(remote); }
+      if (!remote) return;
+      const remoteTs = remote._ts || 0;
+      if (remoteTs > localTs) {
+        // Supabase är nyare (t.ex. ändrat på annan enhet)
+        setOverrides(remote);
+        lsSetOverrides(remote);
+      }
+      // Annars: localStorage är nyare eller lika — behåll nuvarande state
     });
   },[]);
 
@@ -829,7 +838,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
   const allOvn = useMemo(()=>Object.values(OVN).map(o=>overrides[o.id]?{...o,...overrides[o.id]}:o),[overrides]);
 
   const saveOverride = async (id, draft) => {
-    const next = {...overrides, [id]: draft};
+    const next = {...overrides, [id]: draft, _ts: Date.now()};
     setOverrides(next);
     lsSetOverrides(next);
     if (SUPA_OK) {
@@ -839,7 +848,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
     }
   };
   const removeOverride = async (id) => {
-    const next = {...overrides};
+    const next = {...overrides, _ts: Date.now()};
     delete next[id];
     setOverrides(next);
     lsSetOverrides(next);
