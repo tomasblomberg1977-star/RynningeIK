@@ -810,6 +810,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
   const [q,setQ] = useState("");
   const [filterSkede,setFilterSkede] = useState("alla");
   const [filterTyp,setFilterTyp] = useState("alla");
+  const [filterMalgrupp,setFilterMalgrupp] = useState("alla");
   const [onlyFav,setOnlyFav] = useState(false);
   const [sel,setSel] = useState(null);
   const [showEdit,setShowEdit] = useState(false);
@@ -866,6 +867,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
       if(ql&&!hay.includes(ql)) return false;
       if(filterSkede!=="alla"&&o.skede!==filterSkede) return false;
       if(filterTyp!=="alla"&&o.typ!==filterTyp) return false;
+      if(filterMalgrupp!=="alla"&&(o.malgrupp||"utespelare")!==filterMalgrupp) return false;
       if(onlyFav&&!favs.includes(o.id)) return false;
       return true;
     }).sort((a,b)=>{
@@ -873,7 +875,7 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
       if(fa!==fb) return fb-fa;
       return a.namn.localeCompare(b.namn,"sv");
     });
-  },[q,filterSkede,filterTyp,onlyFav,favs,allOvn]);
+  },[q,filterSkede,filterTyp,filterMalgrupp,onlyFav,favs,allOvn]);
 
   const selOvn = sel ? (overrides[sel] ? {...OVN[sel],...overrides[sel]} : OVN[sel]) : null;
   const toggleFav = (id) => { const n=favs.includes(id)?favs.filter(x=>x!==id):[...favs,id]; setFavs(n); saveF(n); };
@@ -909,7 +911,14 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
             {[["alla","Alla"],["ANF","⚽ Anfall"],["FORS","🛡️ Försvar"],["OMANF","⚡ Omst.→Anfall"],["OMFOR","🔄 Omst.→Försvar"],["MV","🧤 Målvakt"],["FYS","🏋️ Fysisk"],["PREP","📋 Förberedelse"]].map(([v,l])=>(
               <button key={v} onClick={()=>setFilterSkede(v)} className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors ${filterSkede===v?"bg-blue-50 text-gray-900 border-blue-900":"bg-white text-gray-600 border-gray-200 hover:border-blue-400"}`}>{l}</button>
             ))}
-            <div className="w-px bg-slate-200 self-stretch"/>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {/* Målgrupp filter */}
+            {[["alla","Alla målgrupper"],["utespelare","👟 Utespelare"],["allmän","🌐 Allmän"],["målvakt","🧤 Målvakt"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setFilterMalgrupp(v)} className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors ${filterMalgrupp===v?"bg-violet-50 text-violet-900 border-violet-400":"bg-white text-gray-600 border-gray-200 hover:border-violet-300"}`}>{l}</button>
+            ))}
+            <div className="w-px bg-gray-200 self-stretch"/>
+            {/* Typ filter */}
             {[["alla","Alla typer"],["Spelövning","Spelövning"],["Färdighetsövning","Färdighetsövning"],["Styrkeövning","Styrka"],["Fysisk övning","Fysisk"]].map(([v,l])=>(
               <button key={v} onClick={()=>setFilterTyp(v)} className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-colors ${filterTyp===v?"bg-blue-50 text-gray-900 border-blue-900":"bg-white text-gray-600 border-gray-200 hover:border-blue-400"}`}>{l}</button>
             ))}
