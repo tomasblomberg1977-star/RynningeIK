@@ -99,6 +99,7 @@ const supaUpsertSjalvskattning = async (data) => {
 // An override: { typ, skede, kategori, principer } — merged over the original
 
 const ALL_TYPER = ["Spelövning","Färdighetsövning","Aktiveringsövning","Explosivitetsövning","Koordinationsövning","Löpteknik","Rörlighetsövning","Styrkeövning"];
+const ALL_MALGRUPP = ["allmän","utespelare","målvakt"];
 const ALL_PRINCIPER = ["Aktivering","Djupledsspel","Explosivitet","Förhindra avslut","Förhindra djupledsspel","Förhindra speluppbyggnad","Igångsättning","Inlägg & avslut","Komma till avslut","Kontra snabbt","Koordination","Löpteknik","Muskelstyrka","Rädda skott","Rörlighet","Speldjup bakåt","Återerövring"];
 const ALL_KATEGORIER = ["Speluppbyggnad","Förhindra speluppbyggnad / Press","Omst. → Anfall – Kontring","Omst. → Försvar – Återerövring","Komma till avslut","Djupledsspel & kombinationer","Inlägg & avslut","Målvakt – Igångsättning","Målvakt – Djupledsspel & frilägen","Målvakt – Explosivitet","Målvakt – Inlägg","Förhindra & rädda avslut","Aktivering & stabilitet","Explosivitet","Koordination","Löpteknik & rörelse","Muskelstyrka","Rörlighet","Förberedelseträning – Allmän","Förberedelseträning – Rondo","Förberedelseträning – Skott"];
 
@@ -416,7 +417,8 @@ const genBlock = (existingBlocks, selectedSkeden) => {
   // Pool of exercises — ONLY PDF-exercises (have diagrams, id starts with "ovningar")
   // OVN_SVFF hand-curated exercises are excluded from block generation
   const pdfOvn = Object.keys(OVN).filter(id => id.startsWith("ovningar")).map(id => getOvn(id));
-  const ovnPool = pdfOvn.filter(o => activeSkeden.includes(o.skede));
+  // Lagträning: aldrig målvaktsövningar
+  const ovnPool = pdfOvn.filter(o => activeSkeden.includes(o.skede) && o.malgrupp !== "målvakt");
   const byTyp = {
     forb: ovnPool.filter(o => o.typ === "Färdighetsövning" || o.typ === "Styrkeövning" || o.typ === "Fysisk övning"),
     spel: ovnPool.filter(o => o.typ === "Spelövning"),
@@ -453,10 +455,10 @@ const genBlock = (existingBlocks, selectedSkeden) => {
       return o;
     };
 
-    // Pooler — färdighetsövningar EXKLUDERAR MV-övningar
-    const fysPool  = Object.keys(OVN).filter(id => id.startsWith("ovningar")).map(id => getOvn(id)).filter(o => o.skede === "FYS");
-    const fardPool = ovnPool.filter(o => o.typ === "Färdighetsövning" && o.skede !== "MV");
-    const spelPool = ovnPool.filter(o => o.typ === "Spelövning");
+    // Pooler — fysisk aldrig MV, färdighets aldrig MV
+    const fysPool  = Object.keys(OVN).filter(id => id.startsWith("ovningar")).map(id => getOvn(id)).filter(o => o.skede === "FYS" && o.malgrupp !== "målvakt");
+    const fardPool = ovnPool.filter(o => o.typ === "Färdighetsövning" && o.malgrupp !== "målvakt");
+    const spelPool = ovnPool.filter(o => o.typ === "Spelövning" && o.malgrupp !== "målvakt");
 
     // 1. Uppvärmning — hämta rik instruktion från BUILTIN_OVN
     const uppvKey = i % 3 === 0 ? "rondo_4_1" : i % 3 === 1 ? "lagcirkel" : "matchuppvarmning";
@@ -961,12 +963,13 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                       <span className="bg-white text-amber-600 text-xs font-black px-2 py-0.5 rounded">SvFF · {selOvn.id}</span>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded ${SKEDEN[selOvn.skede]?.farg||"bg-slate-200"} ${SKEDEN[selOvn.skede]?.text||"text-gray-700"}`}>{SKEDEN[selOvn.skede]?.label}</span>
                       <span className="text-xs bg-gray-50 text-gray-600 px-2 py-0.5 rounded font-medium">{selOvn.typ}</span>
+                      {selOvn.malgrupp&&<span className={`text-xs px-2 py-0.5 rounded font-medium ${selOvn.malgrupp==="målvakt"?"bg-violet-100 text-violet-800":selOvn.malgrupp==="allmän"?"bg-teal-100 text-teal-800":"bg-blue-100 text-blue-800"}`}>{selOvn.malgrupp.charAt(0).toUpperCase()+selOvn.malgrupp.slice(1)}</span>}
                       {overrides[selOvn.id]&&<span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-bold">✎ Ändrad</span>}
                     </div>
                     <h2 className="text-lg font-black text-slate-900">{selOvn.namn}</h2>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={()=>{ setShowEdit(v=>!v); setEditDraft(showEdit?null:{namn:selOvn.namn,typ:selOvn.typ,skede:selOvn.skede,kategori:selOvn.kategori||"",principer:[...(selOvn.principer||[])]}); }}
+                    <button onClick={()=>{ setShowEdit(v=>!v); setEditDraft(showEdit?null:{namn:selOvn.namn,typ:selOvn.typ,skede:selOvn.skede,malgrupp:selOvn.malgrupp||"utespelare",kategori:selOvn.kategori||"",principer:[...(selOvn.principer||[])]}); }}
                       className={`h-9 px-3 flex items-center gap-1.5 rounded-xl border text-xs font-bold transition-colors ${showEdit?"bg-amber-100 text-amber-800 border-amber-300":"bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300 hover:text-amber-700"}`}>
                       <Edit3 className="h-3.5 w-3.5"/>Kategorisera
                     </button>                    <button onClick={()=>toggleFav(selOvn.id)}
@@ -1002,13 +1005,22 @@ const OvningsbankVy = ({favs, setFavs, onVälj, väljLabel, onBack}) => {
                         </select>
                       </div>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Kategori</label>
-                      <select value={editDraft.kategori} onChange={e=>setEditDraft(d=>({...d,kategori:e.target.value}))}
-                        className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
-                        <option value="">— Ingen —</option>
-                        {ALL_KATEGORIER.map(k=><option key={k} value={k}>{k}</option>)}
-                      </select>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Målgrupp</label>
+                        <select value={editDraft.malgrupp||"utespelare"} onChange={e=>setEditDraft(d=>({...d,malgrupp:e.target.value}))}
+                          className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                          {ALL_MALGRUPP.map(m=><option key={m} value={m}>{m.charAt(0).toUpperCase()+m.slice(1)}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1 block">Kategori</label>
+                        <select value={editDraft.kategori} onChange={e=>setEditDraft(d=>({...d,kategori:e.target.value}))}
+                          className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-amber-400">
+                          <option value="">— Ingen —</option>
+                          {ALL_KATEGORIER.map(k=><option key={k} value={k}>{k}</option>)}
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5 block">Principer</label>
@@ -1521,10 +1533,10 @@ const genMVBlock = (existingMVBlocks) => {
   const mallIdx = (nextId - 1) % MV_BLOCK_NAMN.length;
   const blockNamn = MV_BLOCK_NAMN[mallIdx];
 
-  // Only MV Färdighetsövningar — no Spelövning, no other skeden
+  // Only MV exercises with malgrupp=målvakt — never lagtränings-övningar
   const mvFardPool = Object.values(OVN).filter(o =>
     o.id.startsWith("ovningar") &&
-    o.skede === "MV" &&
+    o.malgrupp === "målvakt" &&
     o.typ === "Färdighetsövning"
   );
 
