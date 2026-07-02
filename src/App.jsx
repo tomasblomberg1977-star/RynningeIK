@@ -1785,6 +1785,42 @@ const ARBETSSATT_SEKTIONER = [
 const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
   const [tab, setTab] = useState("lag");   // "lag" | "spelare"
   const [selSpelare, setSelSpelare] = useState(null);
+  const [skattningar, setSkattningar] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  // Hämta alla spelares självskattningar (RPE/humör/kommentar)
+  useEffect(()=>{
+    supaAllSjalvskattning().then(setSkattningar);
+    supaGetUsers().then(setUsers);
+  },[]);
+
+  const userToSpelare = useMemo(()=>{
+    const m = {};
+    for (const u of users) m[u.id] = String(u.spelare_id || u.id);
+    return m;
+  },[users]);
+
+  // Skattningar per pass (block-tran)
+  const skattByPass = useMemo(()=>{
+    const m = {};
+    for (const s of skattningar) {
+      const key = `${s.block_id}-${s.tran_nr}`;
+      if (!m[key]) m[key] = [];
+      m[key].push({...s, spelId: userToSpelare[s.user_id] || s.user_id});
+    }
+    return m;
+  },[skattningar, userToSpelare]);
+
+  // Skattningar per spelare (spelId)
+  const skattBySpelare = useMemo(()=>{
+    const m = {};
+    for (const s of skattningar) {
+      const sid = userToSpelare[s.user_id] || s.user_id;
+      if (!m[sid]) m[sid] = [];
+      m[sid].push(s);
+    }
+    return m;
+  },[skattningar, userToSpelare]);
 
   // ── Compute stats from appState + blocks ────────────────────────────
   const stats = useMemo(() => {
@@ -1871,6 +1907,41 @@ const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
   };
 
   const SKEDENKEYS = Object.keys(SKEDEN);
+
+  // ── CSV-export ──
+  const exportCSV = () => {
+    const rows = [];
+    const HUMOR_L = {toppen:'Toppen',bra:'Bra',okej:'Okej',trott:'Trött',slit:'Slit'};
+    // Header
+    rows.push(["Datum","Block","Träning","Spelare","Grupp","Betyg","RPE","Humör","Kommentar","Skeenden","Kategorier"]);
+    for (const a of stats.avslutade) {
+      const key = `${a.block.id}-${a.tran.nr}`;
+      const narv = a.ts.narvaro||{};
+      const passSkatt = skattByPass[key]||[];
+      const datum = a.datum ? new Date(a.datum).toLocaleDateString("sv-SE") : "";
+      for (const sp of (trupp||[])) {
+        const sd = narv[sp.id];
+        if (!sd || (sd.status!=="bla"&&sd.status!=="vit")) continue;
+        const skatt = passSkatt.find(s=>String(s.spelId)===String(sp.id));
+        rows.push([
+          datum, a.block.titel, `T${a.tran.nr}`, sp.namn,
+          sd.status==="bla"?"Blå":"Vit",
+          sd.betyg||"", skatt?.rpe||"", skatt?HUMOR_L[skatt.humor]||"":"",
+          (skatt?.kommentar||sd.kommentar||"").replace(/"/g,'""'),
+          a.skeden.join("; "), a.kategorier.join("; "),
+        ]);
+      }
+    }
+    const csv = rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a2 = document.createElement("a");
+    a2.href = url;
+    a2.download = `rynninge_statistik_${new Date().toISOString().slice(0,10)}.csv`;
+    a2.click();
+    URL.revokeObjectURL(url);
+  };
+
   const selSt = selSpelare ? stats.spelareStats[selSpelare] : null;
   const rek = selSt ? getRekommendation(selSt) : null;
 
@@ -1890,11 +1961,16 @@ const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
             <span className="text-gray-400">·</span>
             <span className="font-bold text-gray-900 text-sm">Statistik</span>
           </div>
-          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-            {[["lag","Lag"],["spelare","Spelare"]].map(([v,l])=>(
-              <button key={v} onClick={()=>setTab(v)}
-                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${tab===v?"bg-white shadow-sm text-gray-900":"text-gray-500"}`}>{l}</button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button onClick={()=>exportCSV()} className="text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5" title="Exportera till CSV">
+              ⬇ Export
+            </button>
+            <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+              {[["lag","Lag"],["spelare","Spelare"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setTab(v)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${tab===v?"bg-white shadow-sm text-gray-900":"text-gray-500"}`}>{l}</button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1978,10 +2054,37 @@ const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
             </div>
           )}
 
-          {stats.totalPass===0&&(
-            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">
-              <div className="text-4xl mb-3">📊</div>
-              <div className="font-bold text-gray-600">Ingen statistik ännu</div>
+          {/* Belastning — snitt-RPE per träning */}
+          {(()=>{
+            const passMedRpe = stats.avslutade.map(a=>{
+              const key = `${a.block.id}-${a.tran.nr}`;
+              const sk = skattByPass[key]||[];
+              const rpeVals = sk.map(s=>s.rpe).filter(Boolean);
+              const snitt = rpeVals.length ? rpeVals.reduce((s,v)=>s+v,0)/rpeVals.length : null;
+              return {...a, snittRpe: snitt, antalSkatt: rpeVals.length};
+            }).filter(a=>a.snittRpe!==null);
+            if (passMedRpe.length===0) return null;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Belastning (snitt-RPE per träning)</div>
+                <div className="space-y-2">
+                  {passMedRpe.slice().reverse().map((a,i)=>(
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="text-[10px] text-gray-400 w-24 flex-shrink-0">{a.datum?new Date(a.datum).toLocaleDateString("sv-SE",{month:"short",day:"numeric"}):"–"}</div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs text-gray-600">{a.block.titel} T{a.tran.nr} <span className="text-gray-400">({a.antalSkatt} svar)</span></span>
+                          <span className="text-xs font-bold text-gray-900">{a.snittRpe.toFixed(1)}/10</span>
+                        </div>
+                        <Bar val={a.snittRpe} max={10} color={a.snittRpe>=8?"bg-red-500":a.snittRpe>=6?"bg-amber-400":"bg-green-500"}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[10px] text-gray-400 mt-3">Grön = lätt (&lt;6), gul = medel (6–8), röd = hård (≥8). Baserat på spelarnas egna skattningar.</div>
+              </div>
+            );
+          })()}
               <div className="text-sm mt-1">Genomför träningar i Coach Mode för att se statistik</div>
             </div>
           )}
@@ -2080,6 +2183,42 @@ const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
                   <div className="text-sm text-amber-700">Spela in närvaro på genomförda träningar för att se rekommendationer.</div>
                 )}
               </div>
+
+              {/* Spelarens självskattningar (RPE/humör/kommentar) */}
+              {(()=>{
+                const spSkatt = (skattBySpelare[String(selSpelare)]||[]).slice().sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||""));
+                if (spSkatt.length===0) return null;
+                const HUMOR_E = {toppen:'🤩',bra:'😊',okej:'😐',trott:'😴',slit:'😓'};
+                const snittRpe = (spSkatt.reduce((s,x)=>s+(x.rpe||0),0)/spSkatt.length).toFixed(1);
+                return (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Självskattningar</div>
+                      <div className="text-xs text-gray-500">Snitt-RPE: <span className="font-bold text-amber-600">{snittRpe}/10</span></div>
+                    </div>
+                    <div className="space-y-2.5">
+                      {spSkatt.map((s,i)=>{
+                        // Hitta pass-namn
+                        const allB = [...(blocks||[]),...(mvBlocks||[])];
+                        const blk = allB.find(b=>String(b.id)===String(s.block_id));
+                        const passNamn = blk ? `${blk.titel} T${s.tran_nr}` : `${s.block_id} T${s.tran_nr}`;
+                        return (
+                          <div key={i} className="flex items-start gap-3 p-2.5 bg-gray-50 rounded-xl">
+                            <div className="text-xl flex-shrink-0">{HUMOR_E[s.humor]||'•'}</div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-semibold text-gray-700 truncate">{passNamn}</span>
+                                <span className="text-xs font-bold text-amber-600 flex-shrink-0">RPE {s.rpe}</span>
+                              </div>
+                              {s.kommentar&&<div className="text-xs text-gray-500 mt-0.5 italic">"{s.kommentar}"</div>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Per skeende */}
               {Object.keys(selSt.skeden).length>0&&(
@@ -3440,6 +3579,54 @@ export default function App() {
   const [activeBlock, setActiveBlock] = useState(null);
   const [activeTran,  setActiveTran]  = useState(null);
   const syncTimer = useRef(null);
+
+  // ── Träningspåminnelser (notiser inför schemalagda pass) ──────────
+  useEffect(() => {
+    if (!currentUser) return;
+    if ("Notification" in window && Notification.permission === "default") {
+      const t = setTimeout(() => { Notification.requestPermission().catch(()=>{}); }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+    const check = () => {
+      const now = new Date();
+      const allB = [...(blocks||[]), ...(mvBlocks||[])];
+      let notified = {};
+      try { notified = JSON.parse(localStorage.getItem("_rik_notified")||"{}"); } catch {}
+      const idag = now.toISOString().slice(0,10);
+      if (notified._datum !== idag) notified = { _datum: idag };
+
+      for (const block of allB) {
+        for (const tran of (block.trän||[])) {
+          const ts = appState[`${block.id}-${tran.nr}`] || {};
+          if (ts.avslutad || !ts.eventDatum) continue;
+          const passTid = new Date(ts.eventDatum);
+          const timmarKvar = (passTid - now) / (1000*60*60);
+          if (timmarKvar <= 0 || timmarKvar > 26) continue;
+          const nid = `${block.id}-${tran.nr}`;
+          if (notified[nid]) continue;
+          const tidStr = passTid.toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
+          const dagStr = timmarKvar <= 14 ? "idag" : "imorgon";
+          new Notification("Rynninge IK — kommande träning", {
+            body: `${block.titel} ${dagStr} kl ${tidStr}`,
+            icon: "/icons/icon-192.png",
+            tag: nid,
+          });
+          notified[nid] = true;
+        }
+      }
+      localStorage.setItem("_rik_notified", JSON.stringify(notified));
+    };
+
+    check();
+    const interval = setInterval(check, 60*60*1000);
+    return () => clearInterval(interval);
+  }, [currentUser, blocks, mvBlocks, appState]);
 
   // ── Ladda från Supabase vid start ──────────────────────────────────
   useEffect(() => {
