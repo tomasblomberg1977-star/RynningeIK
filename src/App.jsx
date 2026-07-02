@@ -2085,6 +2085,11 @@ const StatistikVy = ({blocks, mvBlocks, appState, trupp, onBack}) => {
               </div>
             );
           })()}
+
+          {stats.totalPass===0&&(
+            <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">
+              <div className="text-4xl mb-3">📊</div>
+              <div className="font-bold text-gray-600">Ingen statistik ännu</div>
               <div className="text-sm mt-1">Genomför träningar i Coach Mode för att se statistik</div>
             </div>
           )}
